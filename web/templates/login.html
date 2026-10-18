@@ -21,13 +21,11 @@
         .login-card {
             max-width: 440px;
             width: 100%;
-            background: rgba(42, 39, 37, 0.88);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(234, 226, 211, 0.12);
-            border-radius: 20px;
-            padding: 2.5rem;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(174, 143, 96, 0.15);
+            background: rgba(42, 39, 37, 0.9);
+            border: var(--border-hairline);
+            border-radius: var(--radius-card);
+            padding: 2.25rem;
+            box-shadow: var(--shadow-grounded);
         }
         .login-brand {
             display: flex;
@@ -36,71 +34,82 @@
             margin-bottom: 1.5rem;
         }
         .login-brand-icon {
-            width: 42px;
-            height: 42px;
-            background: rgba(174, 143, 96, 0.15);
-            border: 1px solid rgba(174, 143, 96, 0.4);
-            border-radius: 12px;
+            width: 38px;
+            height: 38px;
+            background: rgba(174, 143, 96, 0.12);
+            border: 1px solid rgba(174, 143, 96, 0.35);
+            border-radius: var(--radius-element);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 20px rgba(174, 143, 96, 0.25);
         }
         .form-group {
-            margin-bottom: 1.25rem;
+            margin-bottom: 1rem;
         }
         .form-label {
             display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
+            font-size: var(--font-size-xs);
+            font-weight: var(--weight-semibold);
             color: var(--text-secondary);
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.35rem;
         }
         .form-input {
             width: 100%;
-            background: rgba(24, 22, 21, 0.8);
+            background: rgba(24, 22, 21, 0.85);
             border: 1px solid rgba(234, 226, 211, 0.15);
             color: var(--text-primary);
-            padding: 0.75rem 1rem;
-            border-radius: 10px;
-            font-size: 0.9rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: var(--radius-element);
+            font-size: var(--font-size-base);
             outline: none;
-            transition: all 0.2s ease;
+            transition: border-color 0.2s ease;
         }
         .form-input:focus {
             border-color: var(--accent-cyan);
-            box-shadow: 0 0 15px rgba(174, 143, 96, 0.35);
+        }
+        .form-input.is-invalid {
+            border-color: var(--accent-rose);
+        }
+        .field-error-slot {
+            min-height: 18px;
+            font-size: 0.75rem;
+            color: var(--accent-rose);
+            margin-top: 4px;
+            line-height: 1.2;
         }
         .btn-submit {
             width: 100%;
             padding: 0.85rem;
-            background: linear-gradient(135deg, #AE8F60, #CDB286);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 9999px;
+            background: var(--accent-cyan);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: var(--radius-element);
             color: #181615;
-            font-weight: 700;
-            font-size: 0.85rem;
-            letter-spacing: 0.1em;
+            font-weight: var(--weight-semibold);
+            font-size: var(--font-size-xs);
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             cursor: pointer;
-            transition: all 0.25s ease;
-            box-shadow: 0 4px 25px rgba(174, 143, 96, 0.45);
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            box-shadow: var(--shadow-grounded);
         }
         .btn-submit:hover {
-            box-shadow: 0 6px 35px rgba(174, 143, 96, 0.75);
-            background: linear-gradient(135deg, #F6F2F1, #EAE2D3);
-            color: #181615;
-            transform: translateY(-1px);
+            background: var(--accent-hover);
+            border-color: rgba(255, 255, 255, 0.45);
         }
-        .auth-error {
-            background: rgba(244, 63, 94, 0.15);
-            border: 1px solid rgba(244, 63, 94, 0.3);
-            color: #f43f5e;
-            padding: 0.65rem 1rem;
-            border-radius: 8px;
+        .auth-error-summary {
+            background: rgba(200, 109, 81, 0.15);
+            border: 1px solid rgba(200, 109, 81, 0.35);
+            color: var(--color-bright-white);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-element);
             font-size: 0.8rem;
             margin-bottom: 1.25rem;
             display: none;
+        }
+        .auth-error-summary a {
+            color: var(--accent-cyan);
+            text-decoration: underline;
+            margin-left: 0.35rem;
         }
         .login-footer {
             margin-top: 1.5rem;
@@ -116,7 +125,7 @@
     </style>
 </head>
 <body>
-    <!-- Metallic Alpha Splash Screen Overlay (Screenshot 2026-10-19 at 3.15.51 AM) -->
+    <!-- Metallic Alpha Splash Screen Overlay -->
     <div id="alpha-splash-screen" class="alpha-splash-overlay" onclick="dismissAlphaSplash()">
         <div class="splash-ambient-aura"></div>
         <div class="splash-hud-radar"></div>
@@ -137,50 +146,53 @@
         <div class="login-card">
             <div class="login-brand">
                 <div class="login-brand-icon">
-                    <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 26px; height: 26px; filter: drop-shadow(0 0 6px rgba(174, 143, 96, 0.5));">
+                    <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 24px; height: 24px;">
                 </div>
                 <div>
-                    <h2 style="font-size: 1.15rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;">QUANTUM ALPHA STUDIO</h2>
-                    <span style="font-size: 0.7rem; color: var(--accent-cyan); font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase;">WorldQuant BRAIN Gateway</span>
+                    <h2 style="font-size: var(--font-size-base); font-weight: var(--weight-semibold); letter-spacing: 0.08em; text-transform: uppercase;">QUANTUM ALPHA STUDIO</h2>
+                    <span style="font-size: var(--font-size-xs); color: var(--accent-cyan); font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase;">WorldQuant BRAIN Gateway</span>
                 </div>
             </div>
 
-            <p style="font-size: 0.825rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.5;">
+            <p style="font-size: var(--font-size-xs); color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5; max-width: 65ch;">
                 Sign in with your official WorldQuant BRAIN credentials to sync your consultant portfolio, streak, and autonomous pipeline.
             </p>
 
-            <div id="login-error" class="auth-error"></div>
+            <!-- Top Summary Links to Broken Fields -->
+            <div id="login-error-summary" class="auth-error-summary"></div>
 
-            <form id="login-form">
+            <form id="login-form" novalidate>
                 <div class="form-group">
-                    <label class="form-label">WorldQuant BRAIN Email</label>
-                    <input type="email" id="login-email" class="form-input" placeholder="user@university.edu" required autocomplete="username">
+                    <label for="login-email" class="form-label">WorldQuant BRAIN Email</label>
+                    <input type="email" id="login-email" class="form-input" placeholder="user@university.edu" autocomplete="username">
+                    <div id="email-error-slot" class="field-error-slot"></div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">WorldQuant BRAIN Password</label>
+                    <label for="login-password" class="form-label">WorldQuant BRAIN Password</label>
                     <div class="input-with-toggle">
-                        <input type="password" id="login-password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password" style="padding-right: 2.75rem;">
+                        <input type="password" id="login-password" class="form-input" placeholder="••••••••••••" autocomplete="current-password" style="padding-right: 2.75rem;">
                         <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)" title="Show/Hide password" aria-label="Toggle password visibility">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         </button>
                     </div>
+                    <div id="password-error-slot" class="field-error-slot"></div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; font-size: 0.775rem; color: var(--text-muted);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; font-size: var(--font-size-xs); color: var(--text-muted);">
                     <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
                         <input type="checkbox" id="remember-me" checked> Remember session
                     </label>
-                    <a href="https://support.worldquantbrain.com" target="_blank" style="color: var(--text-secondary); text-decoration: none;">Help & FAQ</a>
+                    <a href="https://support.worldquantbrain.com" target="_blank" style="color: var(--text-secondary); text-decoration: none;">Help &amp; FAQ</a>
                 </div>
 
                 <button type="submit" id="btn-login-submit" class="btn-submit">
-                    Sign In & Authenticate &rarr;
+                    Sign In &amp; Authenticate &rarr;
                 </button>
             </form>
 
             <div class="login-footer">
-                Direct authentication verifies via <code style="color: var(--color-wet-sand);">api.worldquantbrain.com</code>.<br>
+                Direct authentication verifies via <code style="color: var(--accent-cyan);">api.worldquantbrain.com</code>.<br>
                 Need an account? <a href="https://worldquantbrain.com" target="_blank">Sign up at WorldQuant BRAIN</a><br>
                 <div style="margin-top: 0.65rem; display: flex; justify-content: center; gap: 1rem; font-size: 0.725rem;">
                     <a href="/privacy">Privacy Policy</a>
@@ -207,16 +219,85 @@
             }
         }
 
+        // --- Form Validation (Validate on blur; clear on input; reserved slot never shifts button) ---
+        const emailInput = document.getElementById('login-email');
+        const passwordInput = document.getElementById('login-password');
+        const emailSlot = document.getElementById('email-error-slot');
+        const passwordSlot = document.getElementById('password-error-slot');
+        const summaryDiv = document.getElementById('login-error-summary');
+
+        let emailHasError = false;
+        let passwordHasError = false;
+
+        function validateEmail() {
+            const val = emailInput.value.trim();
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!val) {
+                emailSlot.textContent = 'Email address is required.';
+                emailInput.classList.add('is-invalid');
+                emailHasError = true;
+                return false;
+            } else if (!emailRegex.test(val)) {
+                emailSlot.textContent = 'Please enter a valid WorldQuant email.';
+                emailInput.classList.add('is-invalid');
+                emailHasError = true;
+                return false;
+            }
+            emailSlot.textContent = '';
+            emailInput.classList.remove('is-invalid');
+            emailHasError = false;
+            return true;
+        }
+
+        function validatePassword() {
+            const val = passwordInput.value;
+            if (!val) {
+                passwordSlot.textContent = 'Password is required.';
+                passwordInput.classList.add('is-invalid');
+                passwordHasError = true;
+                return false;
+            }
+            passwordSlot.textContent = '';
+            passwordInput.classList.remove('is-invalid');
+            passwordHasError = false;
+            return true;
+        }
+
+        // Validate strictly on blur
+        emailInput.addEventListener('blur', validateEmail);
+        passwordInput.addEventListener('blur', validatePassword);
+
+        // Once flagged with an error, clear immediately on keystroke
+        emailInput.addEventListener('input', () => {
+            if (emailHasError) validateEmail();
+        });
+        passwordInput.addEventListener('input', () => {
+            if (passwordHasError) validatePassword();
+        });
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value;
+            summaryDiv.style.display = 'none';
+            summaryDiv.innerHTML = '';
+
+            const isEmailValid = validateEmail();
+            const isPasswordValid = validatePassword();
+
+            if (!isEmailValid || !isPasswordValid) {
+                const broken = [];
+                if (!isEmailValid) broken.push('<a href="#login-email">Email</a>');
+                if (!isPasswordValid) broken.push('<a href="#login-password">Password</a>');
+                summaryDiv.innerHTML = `Please correct the following fields: ${broken.join(', ')}`;
+                summaryDiv.style.display = 'block';
+                return;
+            }
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
             const btn = document.getElementById('btn-login-submit');
-            const errDiv = document.getElementById('login-error');
 
             btn.disabled = true;
-            btn.textContent = '⏳ Authenticating with WorldQuant BRAIN...';
-            errDiv.style.display = 'none';
+            btn.textContent = 'Authenticating with WorldQuant BRAIN...';
 
             try {
                 const res = await fetch('/api/auth/login', {
@@ -230,14 +311,14 @@
                     btn.textContent = '✓ Verified! Redirecting...';
                     window.location.href = data.redirect || '/engine-select';
                 } else {
-                    errDiv.textContent = data.error || 'Authentication failed. Please verify your email and password.';
-                    errDiv.style.display = 'block';
+                    summaryDiv.textContent = data.error || 'Authentication failed. Please verify credentials.';
+                    summaryDiv.style.display = 'block';
                     btn.disabled = false;
                     btn.textContent = 'Sign In & Authenticate →';
                 }
             } catch (err) {
-                errDiv.textContent = 'Network error connecting to authentication server.';
-                errDiv.style.display = 'block';
+                summaryDiv.textContent = 'Network error connecting to authentication server.';
+                summaryDiv.style.display = 'block';
                 btn.disabled = false;
                 btn.textContent = 'Sign In & Authenticate →';
             }

@@ -21,33 +21,46 @@
     --bg-card-hover: rgba(58, 54, 51, 0.92);
     --bg-sidebar: #1E1C1A;
     
-    /* Borders & Accents */
-    --border-color: rgba(234, 226, 211, 0.12);
-    --border-subtle: rgba(234, 226, 211, 0.06);
-    --border-glow: rgba(174, 143, 96, 0.40);
+    /* Hairline Borders & Restrained Elevation */
+    --border-color: rgba(234, 226, 211, 0.08);
+    --border-subtle: rgba(234, 226, 211, 0.05);
+    --border-hairline: 1px solid rgba(234, 226, 211, 0.08);
+    --border-glow: rgba(174, 143, 96, 0.25);
 
-    --accent-cyan: #AE8F60; /* Wet Sand - Primary Accent & Buttons */
-    --accent-sky: #CDB286;  /* Champagne highlight */
-    --accent-blue: #91A673; /* Luscious Lime */
-    --accent-electric: #F6F2F1; /* Bright White */
-    --accent-emerald: #91A673; /* Luscious Lime (Success / High Fitness) */
-    --accent-violet: #3A4A3F;  /* Dark Hunter Green */
-    --accent-amber: #AE8F60;   /* Wet Sand Gold */
-    --accent-rose: #C86D51;    /* Terracotta Red */
+    /* Flat Accents (Color Means Something: 1 flat accent, no generated gradient spam) */
+    --accent-cyan: #AE8F60;    /* Wet Sand - Primary Accent / Focus */
+    --accent-hover: #C5A470;   /* Subtle highlight */
+    --accent-emerald: #91A673; /* Luscious Lime - Verified Pass / Profit / High Fitness */
+    --accent-violet: #3A4A3F;  /* Dark Hunter Green - Active Surface */
+    --accent-rose: #C86D51;    /* Terracotta - Error / Hurdle Fail */
 
-    /* Typography */
-    --text-primary: #F6F2F1;   /* Bright White - 16.31:1 AAA */
-    --text-secondary: #EAE2D3; /* Whisper White - 14.83:1 AAA */
-    --text-muted: #A89F95;     /* Soft warm grey */
-    --text-dim: #736B63;       /* Telemetry grey */
+    /* Typography System (5 Sizes Max, 1.25 Major Third Ratio) */
+    --font-size-xs: 0.8rem;      /* 12.8px: Labels, metadata, captions */
+    --font-size-base: 1rem;      /* 16px: Body reading, table text, inputs */
+    --font-size-md: 1.25rem;     /* 20px: Subheadings, secondary metrics */
+    --font-size-lg: 1.5625rem;   /* 25px: Section headers */
+    --font-size-xl: 1.953rem;    /* 31.25px: Page titles */
+    --font-size-hero: 2.8rem;    /* Hero primary metric */
+
+    /* Typography Weights (2 Weights only: 400 reading, 600 scanning) */
+    --weight-regular: 400;
+    --weight-semibold: 600;
+
+    /* Text Colors (3 Colors: primary, secondary, muted) */
+    --text-primary: #F6F2F1;                   /* Bright White */
+    --text-secondary: rgba(234, 226, 211, 0.72); /* Whisper White (72%) */
+    --text-muted: rgba(234, 226, 211, 0.42);     /* Muted Telemetry (42%) */
 
     --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-    /* Gradients */
-    --grad-metallic: linear-gradient(135deg, #FFFFFF 0%, #F6F2F1 25%, #EAE2D3 50%, #AE8F60 80%, #91A673 100%);
-    --grad-sand-gold: linear-gradient(135deg, #AE8F60, #CDB286);
-    --grad-hunter-lime: linear-gradient(135deg, #3A4A3F, #91A673);
+    /* Radii (Tighter architectural radius: 8-10px cards, 6px inputs/buttons, 4px badges) */
+    --radius-card: 8px;
+    --radius-element: 6px;
+    --radius-badge: 4px;
+
+    /* Shadow (Crisp grounded elevation, not blurry 40px floaters) */
+    --shadow-grounded: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 
 * {
@@ -65,12 +78,93 @@ html, body {
     background-color: var(--bg-void);
     color: var(--text-primary);
     font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    font-weight: var(--weight-regular);
     min-height: 100vh;
     overflow-x: hidden;
     position: relative;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     caret-color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   TYPOGRAPHY SYSTEM (7 Decisions: 5 sizes, 2 weights, 3 colors, 65ch measure)
+   ========================================================================== */
+h1, .hero-metric {
+    font-size: var(--font-size-xl);
+    font-weight: var(--weight-semibold);
+    line-height: 1.15;
+    letter-spacing: -0.02em; /* Tighten above 24px */
+    color: var(--text-primary);
+}
+
+h2 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--weight-semibold);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+}
+
+h3 {
+    font-size: var(--font-size-md);
+    font-weight: var(--weight-semibold);
+    line-height: 1.25;
+    color: var(--text-primary);
+}
+
+p {
+    font-size: var(--font-size-base);
+    font-weight: var(--weight-regular);
+    line-height: 1.5;
+    color: var(--text-secondary);
+    max-width: 65ch; /* Cap measure between 45 and 75 chars */
+}
+
+/* Small uppercase labels open up by +5% */
+.label-system,
+.studio-params-title,
+.kpi-title,
+.module-title,
+.card-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.05em; /* Open up +5% */
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* Tabular figures for tables, counters, prices, and metrics */
+table,
+.kpi-value,
+.radar-stat-val,
+.flow-val,
+.data-table,
+.timeframe-pill-badge,
+.tabular-figure {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+/* Chrome Autofill Dark Mode Reset (Surface match, readable text) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #181615 inset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    border-color: rgba(234, 226, 211, 0.15) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Reserved space for error messages (Submit button never jumps) */
+.field-error-slot {
+    min-height: 18px;
+    font-size: 0.75rem;
+    color: var(--accent-rose);
+    margin-top: 4px;
+    line-height: 1.2;
 }
 
 /* Custom Scrollbars */
@@ -628,49 +722,48 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.85rem 1.85rem;
-    background: linear-gradient(135deg, #AE8F60, #CDB286);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 9999px;
+    padding: 0.8rem 1.75rem;
+    background: var(--accent-cyan);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--radius-element);
     color: #181615;
-    font-size: 0.775rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+    font-size: var(--font-size-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(174, 143, 96, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.6);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--shadow-grounded);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
     text-decoration: none;
 }
 
 .btn-hero-primary:hover {
-    background: linear-gradient(135deg, #F6F2F1, #EAE2D3);
+    background: var(--accent-hover);
     color: #181615;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 26px rgba(174, 143, 96, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.45);
 }
 
 .btn-hero-secondary {
     display: inline-flex;
     align-items: center;
-    gap: 0.85rem;
-    padding: 0.85rem 1.75rem;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 9999px;
+    gap: 0.75rem;
+    padding: 0.8rem 1.75rem;
+    background: transparent;
+    border: 1px solid rgba(234, 226, 211, 0.18);
+    border-radius: var(--radius-element);
     color: var(--text-primary);
-    font-size: 0.775rem;
-    font-weight: 600;
-    letter-spacing: 0.16em;
+    font-size: var(--font-size-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.25s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     text-decoration: none;
 }
 
 .btn-hero-secondary:hover {
-    background: rgba(56, 189, 248, 0.08);
-    border-color: rgba(56, 189, 248, 0.35);
+    background: rgba(234, 226, 211, 0.06);
+    border-color: var(--accent-cyan);
     color: var(--accent-cyan);
 }
 
@@ -1219,9 +1312,75 @@ html, body {
    ========================================================================== */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
     margin-bottom: 2rem;
+}
+
+/* Primary Metric Hero Card (Your eye lands once) */
+.kpi-hero-card {
+    grid-column: span 2;
+    background: var(--bg-card);
+    border: 1px solid rgba(174, 143, 96, 0.22);
+    border-radius: var(--radius-card);
+    padding: 1.5rem 1.75rem;
+    box-shadow: var(--shadow-grounded);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 140px;
+}
+
+.kpi-hero-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.kpi-hero-title {
+    font-size: var(--font-size-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+}
+
+.kpi-hero-badge {
+    font-size: 0.72rem;
+    font-weight: var(--weight-semibold);
+    background: rgba(145, 166, 115, 0.12);
+    color: var(--accent-emerald);
+    border: 1px solid rgba(145, 166, 115, 0.25);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-badge);
+}
+
+.kpi-hero-value {
+    font-size: var(--font-size-hero);
+    font-weight: var(--weight-semibold);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 0.35rem;
+}
+
+.kpi-hero-sub {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+/* Secondary Metric Cards (Small, clean, no decorative pastel tiles) */
+.kpi-secondary-card {
+    background: var(--bg-card);
+    border: var(--border-hairline);
+    border-radius: var(--radius-card);
+    padding: 1.25rem 1.4rem;
+    box-shadow: var(--shadow-grounded);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .glass-card,
@@ -1229,57 +1388,194 @@ html, body {
     background: var(--bg-card);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    border: var(--border-hairline);
+    border-radius: var(--radius-card);
+    padding: 1.25rem;
+    transition: border-color 0.2s ease;
+    box-shadow: var(--shadow-grounded);
 }
 
 .glass-card:hover,
 .leaderboard-section:hover {
-    border-color: rgba(56, 189, 248, 0.3);
-    box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.65);
+    border-color: rgba(234, 226, 211, 0.18);
 }
 
 .kpi-card {
     position: relative;
-    overflow: hidden;
-}
-
-.kpi-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--card-accent, var(--accent-cyan)), transparent);
+    border-radius: var(--radius-card);
+    border: var(--border-hairline);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-grounded);
 }
 
 .kpi-title {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: var(--font-size-xs);
+    font-weight: var(--weight-semibold);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.05em;
     color: var(--text-muted);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
 .kpi-value {
-    font-size: 2.15rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    font-size: var(--font-size-md);
+    font-weight: var(--weight-semibold);
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.kpi-sub {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* ==========================================================================
+   BATCH CANDIDATE DROP ZONE & HONEST PROGRESS
+   (3 signals before drop, visual proof receipt, percent + time left)
+   ========================================================================== */
+.batch-drop-zone {
+    border: 1px dashed rgba(234, 226, 211, 0.2);
+    border-radius: var(--radius-card);
+    background: rgba(42, 39, 37, 0.45);
+    padding: 1.75rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 1.5rem;
+}
+
+.batch-drop-zone.drag-active {
+    border-color: var(--accent-cyan);
+    border-style: solid;
+    background: rgba(174, 143, 96, 0.1);
+    box-shadow: 0 0 16px rgba(174, 143, 96, 0.2);
+}
+
+.drop-zone-icon {
+    width: 32px;
+    height: 32px;
+    margin: 0 auto 0.5rem auto;
+    color: var(--accent-cyan);
+    transition: transform 0.2s ease;
+}
+
+.batch-drop-zone.drag-active .drop-zone-icon {
+    transform: translateY(-2px);
+}
+
+.drop-zone-copy-primary {
+    font-size: var(--font-size-base);
+    font-weight: var(--weight-semibold);
     color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
 
-.kpi-sub {
-    font-size: 0.775rem;
-    color: var(--text-secondary);
+.drop-zone-copy-secondary {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* Visual Proof File Receipt Card */
+.file-receipt-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(24, 22, 21, 0.85);
+    border: var(--border-hairline);
+    border-radius: var(--radius-element);
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    font-size: var(--font-size-xs);
+}
+
+.file-receipt-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.file-format-badge {
+    background: rgba(174, 143, 96, 0.15);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(174, 143, 96, 0.3);
+    border-radius: var(--radius-badge);
+    padding: 0.15rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: var(--weight-semibold);
+    font-family: var(--font-mono);
+}
+
+.file-receipt-name {
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+}
+
+.file-receipt-size {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+}
+
+/* Honest Progress: Percent + Time Left + Step Status */
+.honest-progress-box {
+    margin-top: 1rem;
+    background: rgba(24, 22, 21, 0.75);
+    border: var(--border-hairline);
+    border-radius: var(--radius-element);
+    padding: 0.85rem 1.15rem;
+}
+
+.honest-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.45rem;
+    font-size: var(--font-size-xs);
+}
+
+.honest-progress-track {
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-badge);
+    overflow: hidden;
+}
+
+.honest-progress-bar {
+    height: 100%;
+    background: var(--accent-emerald);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.honest-progress-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.45rem;
+    font-size: 0.725rem;
+    color: var(--text-muted);
+}
+
+.btn-inline-retry {
+    background: transparent;
+    border: 1px solid var(--accent-rose);
+    color: var(--accent-rose);
+    border-radius: var(--radius-badge);
+    padding: 0.2rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: var(--weight-semibold);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-inline-retry:hover {
+    background: rgba(200, 109, 81, 0.15);
 }
 
 /* ==========================================================================

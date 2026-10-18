@@ -388,66 +388,53 @@
                 </div>
             </div>
 
-            <!-- KPI Metrics Grid -->
+            <!-- KPI Metrics Grid: 1 Primary Metric Hero Card, 3 Secondary Cards (Hierarchy Enforced) -->
             <section class="kpi-grid">
-                <div class="glass-card kpi-card" style="--card-accent: #10b981;">
-                    <div class="kpi-title">
-                        <span>Spectacular Alphas</span>
-                        <span style="color: #10b981;">Fitness &gt; 2.50</span>
+                <!-- Primary Metric Hero Card (Spans 2 columns, dominant 2.8rem number, eye lands once) -->
+                <div class="kpi-hero-card">
+                    <div class="kpi-hero-header">
+                        <span class="kpi-hero-title">Submittable Factor Vault</span>
+                        <span class="kpi-hero-badge">100% HURDLES PASSED</span>
                     </div>
-                    <div id="kpi-spectacular" class="kpi-value" style="color: #34d399;">0</div>
-                    <div class="kpi-sub" id="kpi-leader-sub">Leader: <strong id="kpi-leader-id">--</strong> (<span id="kpi-leader-stats">Fitness -- | Sharpe --</span>)</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.85rem;">
+                        <span id="kpi-submittable" class="kpi-hero-value">0</span>
+                        <span style="font-size: var(--font-size-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+                            / <strong id="kpi-total" style="color: var(--text-primary); font-family: var(--font-mono);">0</strong> Audited Factors
+                        </span>
+                    </div>
+                    <div class="kpi-hero-sub">
+                        Strictly satisfies Sharpe &ge; 1.25, Fitness &ge; 1.00, Margin &gt; 0 bps, and Cross-Correlation &lt; 0.70. Ready for BRAIN submission.
+                    </div>
                 </div>
 
-                <div class="glass-card kpi-card" style="--card-accent: #0ea5e9;">
+                <!-- Secondary Metric 1: Spectacular & High-Fitness Alphas -->
+                <div class="kpi-secondary-card">
                     <div class="kpi-title">
-                        <span>Excellent Alphas</span>
-                        <span style="color: #0ea5e9;">Fitness &gt; 2.00</span>
+                        <span>High-Fitness Alphas</span>
+                        <span style="color: var(--accent-emerald); font-size: 0.7rem;">Fitness &gt; 2.50</span>
                     </div>
-                    <div id="kpi-excellent" class="kpi-value" style="color: #38bdf8;">0</div>
-                    <div class="kpi-sub">Verified: Fitness &ge; 2.00 | Ready for submission</div>
+                    <div id="kpi-spectacular" class="kpi-value">0</div>
+                    <div class="kpi-sub" id="kpi-leader-sub">Leader: <strong id="kpi-leader-id">--</strong></div>
                 </div>
 
-                <div class="glass-card kpi-card" style="--card-accent: #6366f1;">
-                    <div class="kpi-title">
-                        <span>Submittable Vault</span>
-                        <span style="color: #818cf8;">Audited Alphas</span>
-                    </div>
-                    <div style="display: flex; gap: 0.75rem; align-items: baseline;">
-                        <span id="kpi-submittable" class="kpi-value" style="color: #a5b4fc;">0</span>
-                        <span style="font-size: 0.85rem; color: var(--text-muted);">/ <strong id="kpi-total" style="color: var(--text-primary);">0</strong> audited</span>
-                    </div>
-                    <div class="kpi-sub">Passed 100% platform hurdle checks</div>
-                </div>
-
-                <div class="glass-card kpi-card" style="--card-accent: #f59e0b;">
+                <!-- Secondary Metric 2: Active Cloud Submissions -->
+                <div class="kpi-secondary-card">
                     <div class="kpi-title">
                         <span>Active On BRAIN</span>
-                        <span style="color: #f59e0b;">Submitted</span>
+                        <span style="color: var(--text-secondary); font-size: 0.7rem;">Live</span>
                     </div>
-                    <div id="kpi-active" class="kpi-value" style="color: #fbbf24;">0</div>
-                    <div class="kpi-sub"><span id="kpi-unsubmitted-count">0</span> unsubmitted drafts in catalog</div>
+                    <div id="kpi-active" class="kpi-value">0</div>
+                    <div class="kpi-sub"><span id="kpi-unsubmitted-count">0</span> unsubmitted drafts</div>
                 </div>
 
-                <div class="glass-card kpi-card" style="--card-accent: #8b5cf6;">
+                <!-- Secondary Metric 3: Apex In-Sample Sharpe -->
+                <div class="kpi-secondary-card">
                     <div class="kpi-title">
-                        <span>Apex Performance</span>
-                        <span style="color: #8b5cf6;">In-Sample Records</span>
+                        <span>Apex Sharpe</span>
+                        <span style="color: var(--accent-cyan); font-size: 0.7rem;">In-Sample</span>
                     </div>
-                    <div style="display: flex; gap: 1rem; align-items: baseline;">
-                        <div>
-                            <div id="kpi-max-sharpe" style="font-size: 1.6rem; font-weight: 700; color: #a78bfa;">0.00</div>
-                            <div style="font-size: 0.7rem; color: var(--text-muted);">Max Sharpe</div>
-                        </div>
-                        <div>
-                            <div id="kpi-max-return" style="font-size: 1.6rem; font-weight: 700; color: #34d399;">0.0%</div>
-                            <div style="font-size: 0.7rem; color: var(--text-muted);">Max Return</div>
-                        </div>
-                        <div>
-                            <div id="kpi-min-drawdown" style="font-size: 1.6rem; font-weight: 700; color: #38bdf8;">0.0%</div>
-                            <div style="font-size: 0.7rem; color: var(--text-muted);">Min Drawdown</div>
-                        </div>
-                    </div>
+                    <div id="kpi-max-sharpe" class="kpi-value">0.00</div>
+                    <div class="kpi-sub">Peak risk-adjusted performance</div>
                 </div>
             </section>
 
@@ -646,7 +633,7 @@ group_neutralize(fund * rev, subindustry)</textarea>
                                 </div>
                                 <div class="param-input-col">
                                     <label>Decay</label>
-                                    <input id="studio-decay" type="number" value="22" min="1" max="50">
+                                    <input id="studio-decay" type="text" inputmode="numeric" pattern="[0-9]*" value="22">
                                 </div>
                                 <div class="param-input-col">
                                     <label>Neutralization</label>

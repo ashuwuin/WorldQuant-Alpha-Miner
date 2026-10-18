@@ -68,129 +68,122 @@
         }
         /* Primary Action Banner */
         .batch-action-card {
-            background: linear-gradient(135deg, rgba(174, 143, 96, 0.12), rgba(58, 74, 63, 0.18));
-            border: 1px solid rgba(174, 143, 96, 0.35);
-            border-radius: 20px;
-            padding: 2.25rem;
+            background: var(--bg-card);
+            border: 1px solid rgba(234, 226, 211, 0.12);
+            border-radius: var(--radius-card);
+            padding: 2rem 1.75rem;
             margin-bottom: 2rem;
             text-align: center;
             position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--shadow-grounded);
         }
         .btn-run-batch {
-            background: linear-gradient(135deg, #AE8F60, #CDB286);
+            background: var(--accent-cyan);
             color: #181615;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            padding: 1.1rem 2.75rem;
-            font-size: 1.15rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 0.85rem 2.25rem;
+            font-size: var(--font-size-base);
+            font-weight: var(--weight-semibold);
+            letter-spacing: 0.04em;
             text-transform: uppercase;
-            border-radius: 9999px;
+            border-radius: var(--radius-element);
             cursor: pointer;
-            box-shadow: 0 0 35px rgba(174, 143, 96, 0.45);
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: var(--shadow-grounded);
+            transition: background-color 0.2s ease, border-color 0.2s ease;
             display: inline-flex;
             align-items: center;
-            gap: 0.65rem;
+            gap: 0.5rem;
         }
         .btn-run-batch:hover {
-            transform: scale(1.04);
-            box-shadow: 0 0 50px rgba(174, 143, 96, 0.75);
-            background: linear-gradient(135deg, #F6F2F1, #EAE2D3);
-            color: #181615;
+            background: var(--accent-hover);
+            border-color: rgba(255, 255, 255, 0.45);
         }
         .btn-run-batch:disabled {
-            opacity: 0.7;
+            opacity: 0.5;
             cursor: not-allowed;
-            transform: none;
         }
         /* Progress Stepper */
         .progress-stepper {
             display: none;
-            margin-top: 2rem;
-            max-width: 680px;
+            margin-top: 1.5rem;
+            max-width: 640px;
             margin-left: auto;
             margin-right: auto;
         }
         .progress-bar-container {
             width: 100%;
-            height: 6px;
+            height: 5px;
             background: rgba(255, 255, 255, 0.06);
-            border-radius: 9999px;
+            border-radius: var(--radius-badge);
             overflow: hidden;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
         .progress-bar-fill {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #3A4A3F, #91A673, #AE8F60);
-            transition: width 0.4s ease;
-            box-shadow: 0 0 15px #91A673;
+            background: var(--accent-emerald);
+            transition: width 0.3s ease;
         }
         .steps-labels {
             display: flex;
             justify-content: space-between;
-            font-size: 0.75rem;
+            font-size: var(--font-size-xs);
             color: var(--text-muted);
-            font-weight: 600;
+            font-weight: var(--weight-regular);
         }
         .step-label.active {
-            color: var(--accent-cyan);
-            font-weight: 700;
+            color: var(--accent-emerald);
+            font-weight: var(--weight-semibold);
         }
         /* Achievements Rack */
         .achievement-rack {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 1rem;
+            gap: 0.75rem;
         }
         .achievement-card {
-            background: rgba(42, 39, 37, 0.75);
-            border: 1px solid rgba(234, 226, 211, 0.08);
-            border-radius: 14px;
-            padding: 1rem 1.25rem;
+            background: rgba(24, 22, 21, 0.7);
+            border: var(--border-hairline);
+            border-radius: var(--radius-element);
+            padding: 0.85rem 1rem;
             display: flex;
             align-items: center;
-            gap: 1rem;
-            transition: all 0.2s ease;
+            gap: 0.85rem;
+            transition: border-color 0.2s ease;
         }
         .achievement-card:hover {
-            border-color: rgba(174, 143, 96, 0.35);
-            background: rgba(58, 54, 51, 0.9);
-            transform: translateY(-2px);
+            border-color: rgba(234, 226, 211, 0.2);
         }
         .achievement-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-badge);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
+            font-size: 1.1rem;
             flex-shrink: 0;
         }
         .icon-unlocked {
-            background: rgba(145, 166, 115, 0.18);
-            border: 1px solid rgba(145, 166, 115, 0.35);
-            box-shadow: 0 0 15px rgba(145, 166, 115, 0.2);
+            background: rgba(145, 166, 115, 0.12);
+            border: 1px solid rgba(145, 166, 115, 0.25);
+            color: var(--accent-emerald);
         }
         .icon-locked {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            color: #64748b;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
             filter: grayscale(1);
         }
         /* Submission Modal Card */
         .ready-approval-card {
             display: none;
-            background: rgba(58, 74, 63, 0.4);
+            background: rgba(58, 74, 63, 0.25);
             border: 1px solid rgba(145, 166, 115, 0.35);
-            border-radius: 16px;
-            padding: 1.75rem;
+            border-radius: var(--radius-card);
+            padding: 1.5rem;
             margin-top: 1.5rem;
-            animation: modal-fade-in 0.3s ease;
+            animation: modal-fade-in 0.2s ease;
             text-align: left;
         }
     </style>
@@ -370,29 +363,60 @@
             </div>
         </header>
 
-        <!-- Primary Action Card: Daily Alpha Run -->
+        <!-- Primary Action Card: Daily Alpha Run & Candidate Drop Zone -->
         <section class="batch-action-card">
-            <h2 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 0.5rem;">
-                Automated Daily Alpha Discovery & Audit
+            <h2 style="font-size: var(--font-size-lg); font-weight: var(--weight-semibold); margin-bottom: 0.35rem;">
+                Automated Daily Alpha Discovery &amp; Audit
             </h2>
-            <p style="color: var(--text-secondary); font-size: 0.875rem; max-width: 580px; margin: 0 auto 1.75rem auto; line-height: 1.5;">
-                Generates fresh quantitative investment alphas, executes multi-universe simulations on WorldQuant BRAIN, and audits 100% of platform hurdles in the background.
+            <p style="color: var(--text-secondary); font-size: var(--font-size-xs); max-width: 65ch; margin: 0 auto 1.5rem auto; line-height: 1.5;">
+                Generates fresh quantitative alphas, executes multi-universe simulations on WorldQuant BRAIN, and audits 100% of platform hurdles.
             </p>
 
-            <button id="btn-run-batch" class="btn-run-batch" onclick="triggerDailyBatch()">
-                <span id="btn-batch-text">Generate &amp; Simulate Today's Alphas</span>
-            </button>
+            <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                <button id="btn-run-batch" class="btn-run-batch" onclick="triggerDailyBatch()">
+                    <span id="btn-batch-text">Generate &amp; Simulate Today's Alphas</span>
+                </button>
+            </div>
 
-            <!-- Live Progress Stepper -->
-            <div id="progress-stepper" class="progress-stepper">
-                <div class="progress-bar-container">
-                    <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            <!-- Interactive Candidate File Drop Zone (3 Signals Before Drop, Visual Proof Receipt) -->
+            <div id="dashboard-drop-zone" class="batch-drop-zone" onclick="document.getElementById('file-candidate-input').click()">
+                <input type="file" id="file-candidate-input" accept=".json,.csv" style="display: none;" onchange="handleCandidateFileSelect(this.files)">
+                <svg class="drop-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <div id="drop-zone-prompt-primary" class="drop-zone-copy-primary">Drop factor candidate file (.json / .csv) or click to browse</div>
+                <div id="drop-zone-prompt-secondary" class="drop-zone-copy-secondary">Supports candidate batches up to 50 formulas • Validates FastExpr schema on release</div>
+                
+                <!-- Visual Proof File Receipt (Revealed after valid file load) -->
+                <div id="file-receipt-card" class="file-receipt-card" style="display: none;">
+                    <div class="file-receipt-meta">
+                        <span id="file-receipt-badge" class="file-format-badge">JSON</span>
+                        <div>
+                            <div id="file-receipt-name" class="file-receipt-name">candidates_example.json</div>
+                            <div id="file-receipt-stats" class="file-receipt-size">24.6 KB • 6 factor formulas staged</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: var(--accent-emerald); font-weight: 600;">✓ Validated</span>
+                        <button type="button" class="btn-inline-retry" onclick="event.stopPropagation(); clearCandidateFile()">Clear</button>
+                    </div>
                 </div>
-                <div class="steps-labels">
-                    <span id="step-1" class="step-label active">1. Synthesizing Logic</span>
-                    <span id="step-2" class="step-label">2. WorldQuant Simulation</span>
-                    <span id="step-3" class="step-label">3. Platform Hurdle Audit</span>
-                    <span id="step-4" class="step-label">4. Safe Submission Ready</span>
+
+                <!-- Honest Progress: Percent + Time Left + Step Status (No fake indefinite spinners) -->
+                <div id="honest-progress-box" class="honest-progress-box" style="display: none;">
+                    <div class="honest-progress-header">
+                        <span id="honest-progress-stage" style="color: var(--text-primary); font-weight: 600;">Stage: Synthesizing Expression Trees</span>
+                        <span id="honest-progress-pct" style="color: var(--accent-cyan); font-weight: 600; font-family: var(--font-mono);">0%</span>
+                    </div>
+                    <div class="honest-progress-track">
+                        <div id="honest-progress-bar" class="honest-progress-bar"></div>
+                    </div>
+                    <div class="honest-progress-footer">
+                        <span id="honest-progress-time">Estimated ~4s remaining</span>
+                        <button id="btn-honest-retry" type="button" class="btn-inline-retry" style="display: none;" onclick="event.stopPropagation(); retryBatchUpload()">Inline Resume</button>
+                    </div>
                 </div>
             </div>
 
@@ -400,40 +424,40 @@
             <div id="ready-approval-card" class="ready-approval-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <div>
-                        <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: #34d399; letter-spacing: 0.05em;">100% PLATFORM HURDLES PASSED</span>
-                        <h3 style="font-size: 1.25rem; font-weight: 800; margin-top: 0.2rem;">
-                            Alpha Candidate Ready: <span id="candidate-alpha-id" style="color: #38bdf8;">--</span>
+                        <span style="font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--accent-emerald); letter-spacing: 0.05em;">100% PLATFORM HURDLES PASSED</span>
+                        <h3 style="font-size: var(--font-size-md); font-weight: var(--weight-semibold); margin-top: 0.2rem;">
+                            Alpha Candidate Ready: <span id="candidate-alpha-id" style="color: var(--accent-cyan);">--</span>
                         </h3>
                     </div>
-                    <span style="font-size: 0.75rem; padding: 0.25rem 0.6rem; border-radius: 9999px; background: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: 700;">
+                    <span style="font-size: 0.75rem; padding: 0.25rem 0.6rem; border-radius: var(--radius-badge); background: rgba(145, 166, 115, 0.15); color: var(--accent-emerald); font-weight: 600;">
                         SELF-CORRELATION: PASS (&lt;0.70)
                     </span>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; font-size: 0.825rem;">
-                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 8px;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 6px;">
                         <span style="color: var(--text-muted); display: block; font-size: 0.7rem;">Sharpe Ratio</span>
-                        <strong id="candidate-sharpe" style="color: #34d399; font-size: 1.1rem;">--</strong>
+                        <strong id="candidate-sharpe" style="color: var(--accent-emerald); font-size: 1.1rem; font-family: var(--font-mono);">--</strong>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 8px;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 6px;">
                         <span style="color: var(--text-muted); display: block; font-size: 0.7rem;">Fitness Score</span>
-                        <strong id="candidate-fitness" style="color: #38bdf8; font-size: 1.1rem;">--</strong>
+                        <strong id="candidate-fitness" style="color: var(--accent-cyan); font-size: 1.1rem; font-family: var(--font-mono);">--</strong>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 8px;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 6px;">
                         <span style="color: var(--text-muted); display: block; font-size: 0.7rem;">Annual Return</span>
-                        <strong id="candidate-returns" style="font-size: 1.1rem;">--%</strong>
+                        <strong id="candidate-returns" style="font-size: 1.1rem; font-family: var(--font-mono);">--%</strong>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 8px;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 6px;">
                         <span style="color: var(--text-muted); display: block; font-size: 0.7rem;">Turnover</span>
-                        <strong id="candidate-turnover" style="font-size: 1.1rem;">--%</strong>
+                        <strong id="candidate-turnover" style="font-size: 1.1rem; font-family: var(--font-mono);">--%</strong>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 8px;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 6px;">
                         <span style="color: var(--text-muted); display: block; font-size: 0.7rem;">Margin</span>
-                        <strong id="candidate-margin" style="font-size: 1.1rem;">-- bps</strong>
+                        <strong id="candidate-margin" style="font-size: 1.1rem; font-family: var(--font-mono);">-- bps</strong>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 8px;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.6rem; border-radius: 6px;">
                         <span style="color: var(--text-muted); display: block; font-size: 0.7rem;">Max Drawdown</span>
-                        <strong id="candidate-drawdown" style="font-size: 1.1rem;">--%</strong>
+                        <strong id="candidate-drawdown" style="font-size: 1.1rem; font-family: var(--font-mono);">--%</strong>
                     </div>
                 </div>
 
@@ -441,69 +465,63 @@
                     <span style="font-size: 0.775rem; color: var(--text-secondary);">
                         Safe Auto-Pilot: Candidate evaluated and audited. Final portfolio submission requires your click.
                     </span>
-                    <button id="btn-confirm-submit" onclick="confirmSubmitCandidate()" class="btn-compare-action" style="background: linear-gradient(135deg, #10b981, #06b6d4); font-size: 0.9rem; padding: 0.6rem 1.4rem;">
+                    <button id="btn-confirm-submit" onclick="confirmSubmitCandidate()" style="background: var(--accent-emerald); color: #181615; border: 1px solid rgba(255,255,255,0.25); font-size: 0.85rem; font-weight: 600; padding: 0.6rem 1.4rem; border-radius: var(--radius-element); cursor: pointer;">
                         Confirm &amp; Submit Alpha to BRAIN
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- 4 Macro KPI Cards Grid -->
+        <!-- Macro KPI Cards Grid: 1 Primary Metric Hero Card, 3 Secondary Cards (Hierarchy Enforced) -->
         <section class="kpi-grid" style="margin-bottom: 2rem;">
-            <!-- KPI 1: Level Status -->
-            <div class="glass-card kpi-card" style="--card-accent: #f59e0b;">
-                <div class="kpi-title">
-                    <span>WorldQuant Level</span>
-                    <span style="color: #f59e0b; font-size: 0.75rem;">Consultant Track</span>
+            <!-- Primary Metric Hero Card (Your eye lands once: dominant 2.8rem number, 100% hurdles verified) -->
+            <div class="kpi-hero-card">
+                <div class="kpi-hero-header">
+                    <span class="kpi-hero-title">Active WorldQuant Portfolio</span>
+                    <span class="kpi-hero-badge">100% HURDLES VERIFIED</span>
                 </div>
-                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.25rem;">
-                    <div id="stat-level" style="font-size: 2.2rem; font-weight: 800; color: #fbbf24;">GOLD</div>
+                <div style="display: flex; align-items: baseline; gap: 0.75rem;">
+                    <div id="stat-active-count" class="kpi-hero-value">15</div>
+                    <span style="font-size: var(--font-size-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Alphas In Production</span>
                 </div>
-                <div class="kpi-sub" style="margin-top: 0.5rem;">Senior Consultant Eligibility Unlocked</div>
+                <div class="kpi-hero-sub">
+                    Live portfolio submissions actively monitored by WorldQuant BRAIN Risk Desk. Cross-correlation &lt; 0.70 verified.
+                </div>
             </div>
 
-            <!-- KPI 2: Active Portfolio -->
-            <div class="glass-card kpi-card" style="--card-accent: #10b981;">
+            <!-- Secondary Metric 1: Consultant Track Level (Small, clean, no decorative tiles) -->
+            <div class="kpi-secondary-card">
                 <div class="kpi-title">
-                    <span>Active Portfolio</span>
-                    <span style="color: #10b981; font-size: 0.75rem;">Live Generating Returns</span>
+                    <span>Consultant Track</span>
+                    <span style="color: var(--accent-cyan); font-size: 0.7rem;">Verified</span>
                 </div>
-                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.25rem;">
-                    <div id="stat-active-count" style="font-size: 2.2rem; font-weight: 800; color: #34d399;">15</div>
-                    <span style="font-size: 0.85rem; color: var(--text-muted);">Alphas Running</span>
-                </div>
-                <div class="kpi-sub" style="margin-top: 0.5rem;">Accepted by WorldQuant BRAIN Risk Desk</div>
+                <div id="stat-level" class="kpi-value">GOLD</div>
+                <div class="kpi-sub">Senior Consultant status unlocked</div>
             </div>
 
-            <!-- KPI 3: Submission Streak -->
-            <div class="glass-card kpi-card" style="--card-accent: #ef4444;">
+            <!-- Secondary Metric 2: Submission Streak -->
+            <div class="kpi-secondary-card">
                 <div class="kpi-title">
                     <span>Submission Streak</span>
-                    <span style="color: #ef4444; font-size: 0.75rem;">Daily Consistency</span>
+                    <span style="color: var(--accent-emerald); font-size: 0.7rem;">Active</span>
                 </div>
-                <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.25rem;">
-                    <div id="stat-streak-days" style="font-size: 2.2rem; font-weight: 800; color: #f87171;">6</div>
-                    <span style="font-size: 0.85rem; color: var(--text-muted);">Consecutive Days</span>
+                <div style="display: flex; align-items: baseline; gap: 0.35rem;">
+                    <div id="stat-streak-days" class="kpi-value">6</div>
+                    <span style="font-size: var(--font-size-xs); color: var(--text-muted);">Days</span>
                 </div>
-                <div class="kpi-sub" style="margin-top: 0.5rem;">Active streak maintained across USA/EUR/ASI</div>
+                <div class="kpi-sub">Consecutive daily evaluations maintained</div>
             </div>
 
-            <!-- KPI 4: Active Competitions -->
-            <div class="glass-card kpi-card" style="--card-accent: #06b6d4;">
+            <!-- Secondary Metric 3: Active Competition Challenge -->
+            <div class="kpi-secondary-card">
                 <div class="kpi-title">
                     <span>Active Challenge</span>
-                    <span style="color: #06b6d4; font-size: 0.75rem;">National &amp; Global</span>
+                    <span id="stat-comp-status" style="color: var(--text-secondary); font-size: 0.7rem;">Enrolled</span>
                 </div>
-                <div style="margin-top: 0.25rem;">
-                    <div id="stat-comp-name" style="font-size: 1.35rem; font-weight: 800; color: #38bdf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        Global Quant Challenge
-                    </div>
+                <div id="stat-comp-name" class="kpi-value" style="font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    Global Quant Challenge
                 </div>
-                <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <span id="stat-comp-status" style="font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(16, 185, 129, 0.2); color: #34d399;">
-                        ACCEPTED &amp; ENROLLED
-                    </span>
-                </div>
+                <div class="kpi-sub">Verified participant ranking active</div>
             </div>
         </section>
 
