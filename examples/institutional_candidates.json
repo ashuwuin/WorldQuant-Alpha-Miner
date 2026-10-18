@@ -1,0 +1,53 @@
+[
+  {
+    "id": "2rjvJEax",
+    "name": "Institutional Capital Efficiency & Gross Profitability Quality Composite",
+    "tier": "SPECTACULAR",
+    "sharpe": 2.39,
+    "fitness": 2.55,
+    "turnover": 0.1253,
+    "margin_bps": 22.69,
+    "annual_returns": 0.1422,
+    "max_drawdown": 0.0629,
+    "status": "ACTIVE",
+    "universe": "TOP3000",
+    "decay": 22,
+    "delay": 1,
+    "neutralization": "SUBINDUSTRY",
+    "expr": "oi_mom = rank(ts_delta(ts_backfill(operating_income, 120), 120) / cap);\nown_hist = rank(ts_rank(ts_backfill(ebitda, 120) / (ts_backfill(enterprise_value, 120) + 1), 250));\neps_mom = rank(ts_delta(ts_backfill(anl4_afv4_eps_mean, 60), 60));\ncf_yield = rank(ts_backfill(cashflow_op, 120) / cap);\nasset_turn = rank(ts_backfill(sales, 120) / (ts_backfill(assets, 120) + 1));\nfund = power(rank(0.25 * oi_mom + 0.15 * own_hist + 0.20 * eps_mom + 0.15 * cf_yield + 0.25 * asset_turn), 2.5);\nrev = power(0.70 * rank(-(close - ts_mean(vwap, 2)) / ts_mean(vwap, 2)) + 0.30 * rank(-returns), 2.5);\ngroup_neutralize(fund * rev, subindustry)"
+  },
+  {
+    "id": "VkdXdvOw",
+    "name": "Institutional Novy-Marx Gross Profitability & Tail Concentration Composite",
+    "tier": "EXCELLENT",
+    "sharpe": 2.28,
+    "fitness": 2.38,
+    "turnover": 0.1165,
+    "margin_bps": 23.34,
+    "annual_returns": 0.1360,
+    "max_drawdown": 0.0642,
+    "status": "VERIFIED_IS",
+    "universe": "TOP3000",
+    "decay": 24,
+    "delay": 1,
+    "neutralization": "SUBINDUSTRY",
+    "expr": "oi_mom = rank(ts_delta(ts_backfill(operating_income, 120), 120) / cap);\nown_hist = rank(ts_rank(ts_backfill(ebitda, 120) / (ts_backfill(enterprise_value, 120) + 1), 250));\neps_mom = rank(ts_delta(ts_backfill(anl4_afv4_eps_mean, 60), 60));\ncf_yield = rank(ts_backfill(cashflow_op, 120) / cap);\nasset_turn = rank(ts_backfill(sales, 120) / (ts_backfill(assets, 120) + 1));\ngross_prof = rank((ts_backfill(sales, 120) - ts_backfill(cogs, 120)) / (ts_backfill(assets, 120) + 1));\nfund = power(rank(0.20 * oi_mom + 0.15 * own_hist + 0.20 * eps_mom + 0.15 * cf_yield + 0.15 * asset_turn + 0.15 * gross_prof), 2.5);\nrev = power(0.70 * rank(-(close - ts_mean(vwap, 2)) / ts_mean(vwap, 2)) + 0.30 * rank(-returns), 2.5);\ngroup_neutralize(fund * rev, subindustry)"
+  },
+  {
+    "id": "YPxNAKOA",
+    "name": "LargeCap Operational Cashflow & Quality Composite",
+    "tier": "GOOD",
+    "sharpe": 2.02,
+    "fitness": 1.83,
+    "turnover": 0.1318,
+    "margin_bps": 16.32,
+    "annual_returns": 0.1076,
+    "max_drawdown": 0.0450,
+    "status": "ACTIVE",
+    "universe": "TOP1000",
+    "decay": 20,
+    "delay": 1,
+    "neutralization": "SUBINDUSTRY",
+    "expr": "oi_mom = rank(ts_delta(ts_backfill(operating_income, 90), 90) / cap);\nown_hist = rank(ts_rank(ts_backfill(ebitda, 90) / (ts_backfill(enterprise_value, 90) + 1), 250));\neps_mom = rank(ts_delta(ts_backfill(anl4_afv4_eps_mean, 60), 60));\ncf_yield = rank(ts_backfill(cashflow_op, 90) / cap);\nfund = power(rank(0.35 * oi_mom + 0.15 * own_hist + 0.35 * eps_mom + 0.15 * cf_yield), 2.2);\nrev = power(0.70 * rank(-(close - ts_mean(vwap, 3)) / ts_mean(vwap, 3)) + 0.30 * rank(-returns), 2.2);\ngroup_neutralize(fund * rev, subindustry)"
+  }
+]
