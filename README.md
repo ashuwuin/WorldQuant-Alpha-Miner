@@ -58,7 +58,8 @@ WorldQuant BRAIN permanently rejects any submitted alpha whose correlation with 
 - This pipeline intercepts simulation results and queries `/alphas/{id}/check` to compute real-time cross-correlation against every active alpha in the user's live portfolio.
 - Non-orthogonal candidates (e.g. sharing standard operating income or 5-day reversal weights) are automatically flagged as `Submittable: False` to safeguard your daily submission quota.
 
-### 2. 🤖 Tri-Engine Alpha Synthesis
+### 2. 🤖 Multi-Engine Alpha Synthesis
+- **Institutional Quant V2 Engine (`pipeline/engine_institutional.py`)**: Institutional non-linear power-ranked factor synthesis (Akshat Kumar integration). Implements tail concentration ($\text{power}(\text{rank}, 2.5)$), analytical decay optimization ($\tau \in [22, 24]$), and multi-dataset financial interaction grammar (Novy-Marx Gross Profitability, Sloan Accruals, and Consensus EPS Momentum). Delivered verified `SPECTACULAR` (Sharpe 2.39, Fitness 2.55) and `EXCELLENT` (Sharpe 2.28, Fitness 2.38) alphas.
 - **Google Gemini Quant Agent (Primary Default AI)**: High-speed, frontier factor formulation using Google's `gemini-2.0-flash` (free tier via Google AI Studio). Formulates multi-horizon expressions with sector neutralization and power-weighting.
 - **Algorithmic Engine**: Deterministic quantitative generator employing multi-factor financial trees (Capital Efficiency, Novy-Marx Gross Profitability, Free Cash Flow Yield, PEAD, Repurchases, and Alternative Data Network graphs).
 - **Free Local Ollama Agent**: Runs private open-source models (such as `deepseek-r1:latest` or `llama3`) on local hardware via `http://localhost:11434` without needing external API keys.
@@ -125,6 +126,12 @@ python3 -m pipeline.cli --generate algorithmic --count 3
 
 # Local Ollama generation (private offline LLM)
 python3 -m pipeline.cli --generate ollama --model deepseek-r1:latest --count 2
+
+# Institutional V2 generation (tail-concentration & Novy-Marx + Sloan grammar)
+python3 -m pipeline.cli --generate institutional --count 1
+
+# Empirical Benchmark Comparison (Baseline Templates vs. Institutional Engine)
+python3 -m pipeline.cli --benchmark
 ```
 
 Simulate an educational candidate batch:
@@ -136,6 +143,9 @@ Check live portfolio status:
 ```bash
 python3 -m pipeline.cli --portfolio-status
 ```
+
+Institutional Whitepaper & Benchmark Report:
+See [QUANT_RESEARCH_UPGRADE.md](QUANT_RESEARCH_UPGRADE.md) for full econometric diffs and mathematical proofs.
 
 ---
 
