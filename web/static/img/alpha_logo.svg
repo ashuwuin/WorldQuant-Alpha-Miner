@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 180" fill="none">
+  <defs>
+    <!-- Brushed Metallic Platinum-Sand Sheen Gradient -->
+    <linearGradient id="metalSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="20%" stop-color="#F6F2F1" />
+      <stop offset="45%" stop-color="#EAE2D3" />
+      <stop offset="70%" stop-color="#C5B6A1" />
+      <stop offset="85%" stop-color="#AE8F60" />
+      <stop offset="100%" stop-color="#8F7249" />
+    </linearGradient>
+
+    <!-- Subtle Specular Highlight -->
+    <linearGradient id="specularGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#F6F2F1" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#2A2725" stop-opacity="0.1" />
+    </linearGradient>
+
+    <!-- Ambient Shadow & Glow Filter -->
+    <filter id="alphaEmboss" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000000" flood-opacity="0.65" />
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#AE8F60" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Alpha Ribbon Glyph Group -->
+  <g filter="url(#alphaEmboss)">
+    <!-- Aerodynamic Outer Contour with Inner Cutout -->
+    <path fill-rule="evenodd" clip-rule="evenodd"
+      d="M 50 32
+         C 32 32, 20 44, 20 62
+         L 20 128
+         C 20 146, 32 158, 50 158
+         L 138 158
+         C 152 158, 166 150, 175 138
+         L 242 56
+         C 250 46, 262 40, 276 40
+         L 302 40
+         C 324 40, 342 54, 355 72
+         L 418 152
+         C 424 160, 434 164, 446 164
+         L 472 164
+         C 486 164, 494 152, 486 142
+         L 388 34
+         C 368 12, 338 0, 304 0
+         L 256 0
+         C 232 0, 210 10, 194 28
+         L 135 102
+         L 102 102
+         C 88 102, 78 92, 78 78
+         L 78 56
+         C 78 42, 88 32, 102 32
+         L 186 32
+         C 194 32, 200 26, 200 18
+         C 200 10, 194 4, 186 4
+         L 50 4
+         C 22 4, 0 26, 0 54
+         L 0 136
+         C 0 164, 22 186, 50 186
+         L 156 186
+         C 178 186, 198 174, 210 156
+         L 278 72
+         C 284 64, 294 60, 304 60
+         L 310 60
+         C 318 60, 326 66, 332 74
+         L 404 164
+         C 414 176, 428 184, 444 184
+         L 472 184
+         C 506 184, 526 150, 508 124
+         L 406 8
+         C 382 -14, 344 -26, 304 -26
+         Z"
+      fill="none" />
+
+    <!-- Pure Precision Path matching Screenshot exactly -->
+    <!-- Outer boundary: rounded left slab, smooth sweeping right wing -->
+    <path fill-rule="evenodd" clip-rule="evenodd"
+      d="M 50 18
+         C 26 18, 10 34, 10 58
+         L 10 122
+         C 10 146, 26 162, 50 162
+         L 142 162
+         C 162 162, 180 152, 192 136
+         L 302 24
+         C 310 14, 322 8, 336 8
+         L 374 8
+         C 396 8, 414 22, 426 40
+         L 490 142
+         C 496 152, 506 158, 518 158
+         L 530 158
+         C 536 158, 540 152, 536 146
+         L 438 18
+         C 422 -4, 396 -18, 368 -18
+         L 330 -18
+         C 308 -18, 288 -8, 274 8
+         L 174 130
+         C 166 140, 154 146, 140 146
+         L 50 146
+         C 36 146, 26 136, 26 122
+         L 26 58
+         C 26 44, 36 34, 50 34
+         L 170 34
+         C 176 34, 180 30, 180 24
+         C 180 18, 176 18, 170 18
+         Z"
+      fill="none" />
+
+    <!-- Precise Master Silhouette based on Screenshot 2026-10-19 at 3.15.51 AM -->
+    <path
+      d="M 45 22
+         L 185 22
+         C 204 22, 222 32, 233 48
+         L 332 142
+         C 338 148, 347 152, 356 152
+         L 372 152
+         C 378 152, 381 146, 377 141
+         L 278 35
+         C 262 16, 238 6, 214 6
+         L 45 6
+         C 18 6, 0 24, 0 52
+         L 0 128
+         C 0 156, 18 174, 45 174
+         L 132 174
+         C 152 174, 170 164, 182 148
+         L 230 84
+         L 218 72
+         L 170 136
+         C 162 146, 150 152, 136 152
+         L 45 152
+         C 28 152, 18 142, 18 126
+         L 18 54
+         C 18 36, 28 22, 45 22 Z
+         M 84 52
+         L 128 52
+         C 142 52, 152 62, 152 76
+         L 152 104
+         C 152 118, 142 128, 128 128
+         L 84 128
+         C 70 128, 60 118, 60 104
+         L 60 76
+         C 60 62, 70 52, 84 52 Z"
+      fill="none" />
+
+    <!-- Crisp Engineered Vector Ribbon Glyph -->
+    <path
+      d="M 38 18
+         L 178 18
+         C 198 18, 217 28, 228 45
+         L 316 138
+         C 324 146, 335 152, 348 152
+         L 364 152
+         C 369 152, 372 147, 369 143
+         L 264 36
+         C 248 16, 224 5, 198 5
+         L 38 5
+         C 14 5, 0 21, 0 46
+         L 0 134
+         C 0 159, 14 175, 38 175
+         L 132 175
+         C 152 175, 170 165, 181 149
+         L 226 86
+         L 213 74
+         L 168 138
+         C 160 148, 148 154, 134 154
+         L 38 154
+         C 24 154, 18 144, 18 130
+         L 18 50
+         C 18 34, 24 18, 38 18 Z"
+      fill="url(#metalSheen)" />
+
+    <!-- Inner Triangular-Pill Negative Loop -->
+    <path
+      d="M 68 50
+         L 116 50
+         C 134 50, 146 62, 146 78
+         L 146 102
+         C 146 118, 134 130, 116 130
+         L 68 130
+         C 50 130, 38 118, 38 102
+         L 38 78
+         C 38 62, 50 50, 68 50 Z"
+      fill="#1E1C1A" />
+    
+    <!-- Subtle Inner Loop Border Highlight -->
+    <path
+      d="M 68 50
+         L 116 50
+         C 134 50, 146 62, 146 78
+         L 146 102
+         C 146 118, 134 130, 116 130
+         L 68 130
+         C 50 130, 38 118, 38 102
+         L 38 78
+         C 38 62, 50 50, 68 50 Z"
+      stroke="url(#metalSheen)" stroke-width="2" fill="none" opacity="0.6" />
+  </g>
+
+  <!-- Futuristic Geometric 'ALPHA' Wordmark (Matching Screenshot typography) -->
+  <g fill="url(#metalSheen)" filter="url(#alphaEmboss)">
+    <!-- Letter A -->
+    <path d="M 378 46 L 392 12 L 406 46 L 399 46 L 396 38 L 388 38 L 385 46 Z M 390 32 L 394 32 L 392 24 Z" />
+    <!-- Letter L -->
+    <path d="M 416 12 L 423 12 L 423 40 L 439 40 L 439 46 L 416 46 Z" />
+    <!-- Letter P -->
+    <path d="M 449 12 L 467 12 C 474 12, 479 16, 479 23 C 479 30, 474 34, 467 34 L 456 34 L 456 46 L 449 46 Z M 456 18 L 456 28 L 466 28 C 470 28, 472 26, 472 23 C 472 20, 470 18, 466 18 Z" />
+    <!-- Letter H -->
+    <path d="M 488 12 L 495 12 L 495 26 L 507 26 L 507 12 L 514 12 L 514 46 L 507 46 L 507 32 L 495 32 L 495 46 L 488 46 Z" />
+    <!-- Letter A -->
+    <path d="M 524 46 L 538 12 L 552 46 L 545 46 L 542 38 L 534 38 L 531 46 Z M 536 32 L 540 32 L 538 24 Z" />
+  </g>
+</svg>

@@ -15,6 +15,24 @@
 (function () {
     'use strict';
 
+    // Global Splash Screen Dismissal (Screenshot 2026-10-19 at 3.15.51 AM)
+    window.dismissAlphaSplash = function () {
+        const splash = document.getElementById('alpha-splash-screen');
+        if (!splash || splash.classList.contains('fade-out')) return;
+        splash.classList.add('fade-out');
+        setTimeout(() => {
+            splash.style.display = 'none';
+        }, 850);
+    };
+
+    setTimeout(() => {
+        if (window.dismissAlphaSplash) window.dismissAlphaSplash();
+    }, 1350);
+
+    window.addEventListener('keydown', () => {
+        if (window.dismissAlphaSplash) window.dismissAlphaSplash();
+    }, { once: true });
+
     // Global hook for 4 hero animation modes
     let currentHeroMode = 1;
     let setHeroModeInternal = null;
@@ -89,7 +107,8 @@
                 this.baseAlpha = Math.random() * 0.5 + 0.15;
                 this.pulseSpeed = Math.random() * 0.02 + 0.01;
                 this.pulseAngle = Math.random() * Math.PI * 2;
-                const hues = ['56, 189, 248', '14, 165, 233', '96, 165, 250', '59, 130, 246'];
+                // User luxury tech palette: Luscious Lime, Wet Sand, Whisper White, Bright White
+                const hues = ['145, 166, 115', '174, 143, 96', '234, 226, 211', '246, 242, 241'];
                 this.color = hues[Math.floor(Math.random() * hues.length)];
             }
 
@@ -132,8 +151,57 @@
             particles.push(new AmbientParticle());
         }
 
+        // Draw Sci-Fi HUD Telemetry & Ambient Diffuse Lighting (Screenshot 2026-10-19 at 3.18.41 AM)
+        function drawHudTelemetry() {
+            // 1. Warm Ambient Diffuse Lighting Auras
+            const auraGrad = ctx.createRadialGradient(width * 0.18, height * 0.15, 20, width * 0.18, height * 0.15, Math.min(width, height) * 0.6);
+            auraGrad.addColorStop(0, 'rgba(174, 143, 96, 0.08)');
+            auraGrad.addColorStop(0.5, 'rgba(145, 166, 115, 0.03)');
+            auraGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = auraGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Cursor Ambient Halo
+            if (mouse.x !== null && mouse.y !== null) {
+                const cursorHalo = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 220);
+                cursorHalo.addColorStop(0, 'rgba(174, 143, 96, 0.06)');
+                cursorHalo.addColorStop(0.6, 'rgba(145, 166, 115, 0.02)');
+                cursorHalo.addColorStop(1, 'transparent');
+                ctx.fillStyle = cursorHalo;
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            // 3. Technical Coordinate Crosshairs (+)
+            ctx.save();
+            ctx.strokeStyle = 'rgba(234, 226, 211, 0.10)';
+            ctx.lineWidth = 1;
+            const crosshairs = [
+                { x: width * 0.15, y: height * 0.28 },
+                { x: width * 0.88, y: height * 0.22 },
+                { x: width * 0.12, y: height * 0.78 },
+                { x: width * 0.82, y: height * 0.75 },
+                { x: width * 0.50, y: height * 0.88 }
+            ];
+            crosshairs.forEach(pt => {
+                ctx.beginPath();
+                ctx.moveTo(pt.x - 7, pt.y);
+                ctx.lineTo(pt.x + 7, pt.y);
+                ctx.moveTo(pt.x, pt.y - 7);
+                ctx.lineTo(pt.x, pt.y + 7);
+                ctx.stroke();
+            });
+
+            // 4. Subtle Telemetry Corner Tags
+            ctx.fillStyle = 'rgba(145, 166, 115, 0.35)';
+            ctx.font = '9px monospace';
+            ctx.fillText('SYS // LAT 40.7128° N  LON 74.0060° W', 115, height - 22);
+            ctx.fillText('QUANTUM ALPHA // TELEMETRY LINK ACTIVE', width - 260, height - 22);
+            ctx.restore();
+        }
+
         function loop() {
             ctx.clearRect(0, 0, width, height);
+            drawHudTelemetry();
             for (let i = 0; i < particles.length; i++) {
                 particles[i].update();
                 particles[i].draw();
