@@ -18,6 +18,7 @@ if __package__ is None or __package__ == "":
     from pipeline.reporter import PipelineReporter
     from pipeline.engine_algorithmic import AlgorithmicEngine
     from pipeline.engine_ai import CloudAIEngine
+    from pipeline.engine_institutional import InstitutionalQuantEngine
 else:
     from .config import PipelineConfig
     from .client import BrainClient
@@ -26,6 +27,7 @@ else:
     from .reporter import PipelineReporter
     from .engine_algorithmic import AlgorithmicEngine
     from .engine_ai import CloudAIEngine
+    from .engine_institutional import InstitutionalQuantEngine
 
 def cmd_portfolio_status(client: BrainClient) -> None:
     """Displays user profile, tier, and active alphas."""
@@ -106,6 +108,8 @@ def cmd_generate(engine: str = "gemini", count: int = 1, model: str = None) -> N
             cand = CloudAIEngine.generate_alpha(provider="gemini", api_key=key, model=model or "gemini-2.0-flash")
         elif engine_clean == "ollama":
             cand = CloudAIEngine.generate_alpha(provider="ollama", model=model or "deepseek-r1:latest")
+        elif engine_clean == "institutional":
+            cand = InstitutionalQuantEngine.generate_candidate()
         elif engine_clean == "openai":
             key = os.getenv("OPENAI_API_KEY")
             cand = CloudAIEngine.generate_alpha(provider="openai", api_key=key, model=model)
@@ -121,11 +125,17 @@ def main():
     parser = argparse.ArgumentParser(description="Quantum Alpha Studio - WorldQuant BRAIN CLI")
     parser.add_argument("--portfolio-status", action="store_true", help="Display active portfolio status and streak")
     parser.add_argument("--simulate-file", type=str, help="Path to JSON file containing candidate specifications")
-    parser.add_argument("--generate", type=str, nargs="?", const="gemini", choices=["gemini", "algorithmic", "ollama", "openai", "ai"], help="Generate alpha expressions (defaults to gemini)")
+    parser.add_argument("--generate", type=str, nargs="?", const="gemini", choices=["gemini", "algorithmic", "ollama", "openai", "ai", "institutional"], help="Generate alpha expressions (defaults to gemini)")
     parser.add_argument("--count", type=int, default=1, help="Number of alphas to generate")
     parser.add_argument("--model", type=str, help="Optional model name for AI generation (e.g. gemini-2.0-flash)")
+    parser.add_argument("--benchmark", action="store_true", help="Run empirical benchmark comparison between baseline repo templates and institutional engine")
 
     args = parser.parse_args()
+
+    if args.benchmark:
+        from pipeline.benchmark_comparison import print_benchmark_table
+        print_benchmark_table()
+        return
 
     cfg = PipelineConfig()
     try:
@@ -135,7 +145,7 @@ def main():
         client = None
         evaluator = None
 
-    if args.portfolio-status if hasattr(args, "portfolio-status") else args.portfolio_status:
+    if args.portfolio_status:
         if not client:
             print("[!] BRAIN credentials missing in .env. Configure .env first.")
             sys.exit(1)

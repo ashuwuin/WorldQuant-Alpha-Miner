@@ -16,6 +16,16 @@ class AlphaFactory:
     """Generates unique, multi-layered institutional alpha candidates."""
 
     @staticmethod
+    def get_institutional_v2_candidates() -> List[Dict[str, Any]]:
+        """Generates verified Spectacular/Excellent candidates using InstitutionalQuantEngine V2."""
+        from .engine_institutional import InstitutionalQuantEngine
+        return [
+            InstitutionalQuantEngine.generate_candidate(archetype_idx=0, universe="TOP3000", decay=24),
+            InstitutionalQuantEngine.generate_candidate(archetype_idx=1, universe="TOP1000", decay=22),
+            InstitutionalQuantEngine.generate_candidate(archetype_idx=2, universe="TOP2000", decay=22)
+        ]
+
+    @staticmethod
     def get_complex_candidates() -> List[Dict[str, Any]]:
         candidates = [
             # 1. Multi-Layer Quality & Idiosyncratic Risk Dampened Momentum
