@@ -867,10 +867,23 @@ function closeAlphaModal() {
     if (modal) modal.style.display = 'none';
 }
 
-function copyModalCode() {
+function copyModalCode(btn) {
     const code = document.getElementById('modal-code').textContent;
     navigator.clipboard.writeText(code).then(() => {
-        alert('Code copied to clipboard!');
+        const targetBtn = btn || event?.target || document.querySelector('#alphaModal button[onclick*="copyModalCode"]');
+        if (targetBtn) {
+            const originalText = targetBtn.textContent;
+            targetBtn.textContent = '✓ Copied!';
+            targetBtn.style.color = '#91A673';
+            targetBtn.style.borderColor = 'rgba(145, 166, 115, 0.5)';
+            setTimeout(() => {
+                targetBtn.textContent = originalText;
+                targetBtn.style.color = '';
+                targetBtn.style.borderColor = '';
+            }, 1800);
+        }
+    }).catch(err => {
+        console.warn('Copy failed', err);
     });
 }
 
@@ -1460,3 +1473,106 @@ setTimeout(() => {
 window.addEventListener('keydown', () => {
     if (window.dismissAlphaSplash) window.dismissAlphaSplash();
 }, { once: true });
+
+// ==========================================================================
+// INTERACTIVE COMPONENT CONTROLLERS (Scroll, Mobile Drawer, Cookie, FAQ)
+// ==========================================================================
+function initInteractiveComponents() {
+    // 1. Scroll Progress & Back to Top
+    const progressBar = document.getElementById('scroll-progress');
+    const backToTopBtn = document.getElementById('btn-back-to-top');
+
+    window.addEventListener('scroll', () => {
+        const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+        if (totalHeight > 0 && progressBar) {
+            const progress = (window.scrollY / totalHeight) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        if (backToTopBtn) {
+            if (window.scrollY > 320) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        }
+    }, { passive: true });
+
+    if (backToTopBtn) {
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
+    // 2. Cookie Notice Banner
+    const cookieBanner = document.getElementById('cookie-banner');
+    if (cookieBanner && !localStorage.getItem('alpha_cookie_accepted')) {
+        setTimeout(() => {
+            cookieBanner.classList.add('visible');
+        }, 1200);
+    }
+
+    window.dismissCookieBanner = function() {
+        if (cookieBanner) {
+            cookieBanner.classList.remove('visible');
+            localStorage.setItem('alpha_cookie_accepted', 'true');
+        }
+    };
+
+    // 3. Mobile Navigation Drawer
+    window.toggleMobileDrawer = function(open) {
+        const drawer = document.getElementById('mobile-drawer');
+        const backdrop = document.getElementById('mobile-backdrop');
+        if (!drawer || !backdrop) return;
+        if (open === undefined) {
+            drawer.classList.toggle('open');
+            backdrop.classList.toggle('open');
+        } else if (open) {
+            drawer.classList.add('open');
+            backdrop.classList.add('open');
+        } else {
+            drawer.classList.remove('open');
+            backdrop.classList.remove('open');
+        }
+    };
+
+    // 4. FAQ Accordion Toggle
+    window.toggleFaq = function(element) {
+        const item = element.closest('.faq-item');
+        if (item) {
+            item.classList.toggle('open');
+        }
+    };
+
+    // 5. Institutional Help Modal
+    window.openHelpModal = function() {
+        const modal = document.getElementById('helpModal');
+        if (modal) modal.style.display = 'flex';
+    };
+
+    window.closeHelpModal = function() {
+        const modal = document.getElementById('helpModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    // 6. Password Visibility Toggle
+    window.togglePasswordVisibility = function(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.innerHTML = '👁️‍🗨️';
+            btn.title = 'Hide password';
+        } else {
+            input.type = 'password';
+            btn.innerHTML = '👁️';
+            btn.title = 'Show password';
+        }
+    };
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initInteractiveComponents);
+} else {
+    initInteractiveComponents();
+}

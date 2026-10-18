@@ -2097,3 +2097,297 @@ html, body {
         font-size: 3.2rem;
     }
 }
+
+/* ==========================================================================
+   INTERACTIVE COMPONENT SYSTEM (Mobile Drawer, FAQ, Cookie Banner, Back-to-Top)
+   ========================================================================== */
+
+/* 1. Scroll Progress Bar */
+#scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3A4A3F, #91A673, #AE8F60);
+    z-index: 100000;
+    width: 0%;
+    transition: width 0.05s linear;
+    box-shadow: 0 0 10px rgba(174, 143, 96, 0.7);
+}
+
+/* 2. Skip to Content (Accessibility Standard) */
+.skip-to-content {
+    position: fixed;
+    top: -100px;
+    left: 20px;
+    background: #AE8F60;
+    color: #181615;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.825rem;
+    font-weight: 700;
+    border-radius: 8px;
+    z-index: 1000000;
+    transition: top 0.2s ease;
+    text-decoration: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.skip-to-content:focus {
+    top: 20px;
+}
+
+/* 3. Floating Back to Top Button */
+.btn-back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(42, 39, 37, 0.94);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(174, 143, 96, 0.35);
+    color: var(--color-bright-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0;
+    visibility: hidden;
+    z-index: 999;
+}
+.btn-back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+}
+.btn-back-to-top:hover {
+    transform: translateY(-3px);
+    border-color: var(--color-wet-sand);
+    box-shadow: 0 12px 30px rgba(174, 143, 96, 0.45);
+    background: #2A2725;
+}
+
+/* 4. Simple Cookie & Session Notice Banner */
+.cookie-banner {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(140%);
+    max-width: 600px;
+    width: calc(100% - 32px);
+    background: rgba(42, 39, 37, 0.96);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(174, 143, 96, 0.35);
+    border-radius: 16px;
+    padding: 1rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(174, 143, 96, 0.2);
+    z-index: 10001;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cookie-banner.visible {
+    transform: translateX(-50%) translateY(0);
+}
+.cookie-banner-text {
+    font-size: 0.775rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+.cookie-banner-text a {
+    color: var(--color-wet-sand);
+    text-decoration: underline;
+}
+.btn-cookie-dismiss {
+    background: linear-gradient(135deg, #AE8F60, #CDB286);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #181615;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+.btn-cookie-dismiss:hover {
+    background: linear-gradient(135deg, #F6F2F1, #EAE2D3);
+}
+
+/* 5. Mobile Navigation Header & Drawer */
+.mobile-top-bar {
+    display: none;
+    position: sticky;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(30, 28, 26, 0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(234, 226, 211, 0.12);
+    padding: 0.75rem 1.25rem;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 9999;
+}
+@media (max-width: 768px) {
+    .mobile-top-bar {
+        display: flex;
+    }
+}
+.btn-mobile-menu {
+    background: transparent;
+    border: 1px solid rgba(234, 226, 211, 0.2);
+    color: var(--color-bright-white);
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mobile-nav-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: #1E1C1A;
+    border-right: 1px solid rgba(234, 226, 211, 0.12);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100000;
+    padding: 1.75rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.9);
+}
+.mobile-nav-drawer.open {
+    transform: translateX(0);
+}
+.mobile-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 99999;
+    display: none;
+}
+.mobile-drawer-backdrop.open {
+    display: block;
+}
+.mobile-drawer-link {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+.mobile-drawer-link:hover, .mobile-drawer-link.active {
+    background: rgba(174, 143, 96, 0.15);
+    color: var(--color-bright-white);
+    border-left: 3px solid #AE8F60;
+}
+
+/* 6. Password Visibility Toggle */
+.input-with-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.password-toggle-btn {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    transition: color 0.15s ease;
+}
+.password-toggle-btn:hover {
+    color: var(--color-bright-white);
+}
+
+/* 7. Institutional Help & Support Modal */
+.floating-help-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(42, 39, 37, 0.92);
+    border: 1px solid rgba(234, 226, 211, 0.18);
+    color: var(--color-bright-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 999;
+}
+.floating-help-btn:hover {
+    transform: scale(1.08);
+    border-color: var(--color-wet-sand);
+    box-shadow: 0 0 20px rgba(174, 143, 96, 0.4);
+}
+
+/* 8. Expandable FAQ Accordion */
+.faq-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+}
+.faq-item {
+    background: rgba(24, 22, 21, 0.7);
+    border: 1px solid rgba(234, 226, 211, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+}
+.faq-item:hover {
+    border-color: rgba(174, 143, 96, 0.3);
+}
+.faq-question {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-bright-white);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+.faq-answer {
+    padding: 0 1rem 0.75rem 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: none;
+}
+.faq-item.open .faq-answer {
+    display: block;
+}
+.faq-item.open .faq-arrow {
+    transform: rotate(180deg);
+}
+.faq-arrow {
+    transition: transform 0.2s ease;
+    color: var(--color-wet-sand);
+    font-size: 0.75rem;
+}

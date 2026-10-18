@@ -4,11 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quantum Alpha Studio - WorldQuant BRAIN Gateway</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%230284c7%22/><circle cx=%2250%22 cy=%2250%22 r=%2220%22 fill=%22%2338bdf8%22/></svg>">
-    <link rel="stylesheet" href="/static/css/styles.css?v=2.2">
+    <meta name="description" content="Quantum Alpha Studio - Autonomous WorldQuant BRAIN portfolio synchronization, real-time correlation auditing, and institutional quantitative factor research.">
+    <link rel="canonical" href="https://alpha.quantum/studio">
+    <meta property="og:title" content="Quantum Alpha Studio - WorldQuant BRAIN Gateway">
+    <meta property="og:description" content="Autonomous quantitative portfolio synchronization, real-time correlation auditing, and institutional alpha research.">
+    <meta property="og:image" content="/static/img/alpha_logo.svg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="/static/img/alpha_icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.5">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- Accessibility Skip to Main Content -->
+    <a href="#main-app-content" class="skip-to-content">Skip to content</a>
+
+    <!-- Top Scroll Progress Indicator -->
+    <div id="scroll-progress"></div>
+
+    <!-- Mobile Responsive Navigation Bar -->
+    <div class="mobile-top-bar">
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 26px; height: 26px;">
+            <span style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.08em; color: var(--color-bright-white);">ALPHA STUDIO</span>
+        </div>
+        <button class="btn-mobile-menu" onclick="toggleMobileDrawer()" aria-label="Open mobile navigation">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+    </div>
+
+    <!-- Mobile Drawer & Backdrop -->
+    <div id="mobile-backdrop" class="mobile-drawer-backdrop" onclick="toggleMobileDrawer(false)"></div>
+    <aside id="mobile-drawer" class="mobile-nav-drawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 28px; height: 28px;">
+                <span style="font-weight: 800; font-size: 0.9rem; letter-spacing: 0.1em; color: var(--color-bright-white);">QUANTUM ALPHA</span>
+            </div>
+            <button onclick="toggleMobileDrawer(false)" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer;">✕</button>
+        </div>
+        <nav style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
+            <a href="javascript:void(0)" onclick="switchTab('dashboard'); toggleMobileDrawer(false);" class="mobile-drawer-link active">Overview & Leaderboard</a>
+            <a href="javascript:void(0)" onclick="switchTab('portfolio'); toggleMobileDrawer(false);" class="mobile-drawer-link">Live Portfolio</a>
+            <a href="javascript:void(0)" onclick="switchTab('studio'); toggleMobileDrawer(false);" class="mobile-drawer-link">Alpha Studio</a>
+            <a href="javascript:void(0)" onclick="switchTab('datalib'); toggleMobileDrawer(false);" class="mobile-drawer-link">Data Library (4,367)</a>
+            <div style="height: 1px; background: rgba(234, 226, 211, 0.1); margin: 0.75rem 0;"></div>
+            <a href="/dashboard" class="mobile-drawer-link">Auto-Pilot Dashboard</a>
+            <a href="/privacy" class="mobile-drawer-link">Privacy Policy</a>
+            <a href="/terms" class="mobile-drawer-link">Terms & Governance</a>
+        </nav>
+        <div style="font-size: 0.725rem; color: var(--text-muted); border-top: 1px solid rgba(234, 226, 211, 0.08); padding-top: 1rem;">
+            WorldQuant BRAIN Consultant Connected
+        </div>
+    </aside>
+
     <!-- Metallic Alpha Splash Screen Overlay (Screenshot 2026-10-19 at 3.15.51 AM) -->
     <div id="alpha-splash-screen" class="alpha-splash-overlay" onclick="dismissAlphaSplash()">
         <div class="splash-ambient-aura"></div>
@@ -112,7 +160,7 @@
     <!-- ===================================================================== -->
     <!-- MAIN APPLICATION CONTAINER                                            -->
     <!-- ===================================================================== -->
-    <div class="app-container">
+    <main id="main-app-content" class="app-container">
         <!-- Top Header & Brand -->
         <header class="top-header">
             <div class="brand-block">
@@ -830,6 +878,99 @@ group_neutralize(fund * rev, subindustry)</textarea>
                 <div id="modal-checks" style="background: #040814; border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 10px; overflow: hidden;">
                     <!-- Injected by JavaScript -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Back to Top Button -->
+    <button id="btn-back-to-top" class="btn-back-to-top" aria-label="Back to top">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="18 15 12 9 6 15"></polyline></svg>
+    </button>
+
+    <!-- Floating Help & Documentation Button -->
+    <button class="floating-help-btn" onclick="openHelpModal()" aria-label="WorldQuant BRAIN Guidelines & FAQ" title="Platform Hurdles & Help">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    </button>
+
+    <!-- Cookie & Session Security Notice Banner -->
+    <div id="cookie-banner" class="cookie-banner">
+        <div class="cookie-banner-text">
+            <strong>Security &amp; Session Notice:</strong> This portal uses strictly local encrypted HTTP-only session cookies to interface with the WorldQuant BRAIN API. Zero third-party advertising trackers. View our <a href="/privacy">Privacy Policy</a> &amp; <a href="/terms">Terms</a>.
+        </div>
+        <button class="btn-cookie-dismiss" onclick="dismissCookieBanner()">Acknowledge</button>
+    </div>
+
+    <!-- Institutional Help & FAQ Modal -->
+    <div id="helpModal" class="modal-overlay" onclick="if(event.target === this) closeHelpModal()">
+        <div class="modal-content" style="max-width: 680px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 28px; height: 28px;">
+                    <div>
+                        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--color-bright-white);">WorldQuant BRAIN Documentation &amp; FAQ</h3>
+                        <span style="font-size: 0.725rem; color: var(--color-wet-sand); font-family: var(--font-mono);">INSTITUTIONAL QUANT STANDARDS</span>
+                    </div>
+                </div>
+                <button onclick="closeHelpModal()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+
+            <p style="font-size: 0.825rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1.25rem;">
+                Essential reference guide for simulation parameters, platform hurdles, self-correlation audits, and submission rules on WorldQuant BRAIN.
+            </p>
+
+            <div class="faq-accordion">
+                <div class="faq-item open">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>What are the minimum WorldQuant BRAIN submission hurdles?</span>
+                        <span class="faq-arrow">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        To qualify for submission, an alpha simulation must satisfy:
+                        <ul style="margin: 0.5rem 0 0 1.25rem; line-height: 1.5;">
+                            <li><strong>Sharpe Ratio:</strong> &ge; 1.25 (USA / EUR / ASI)</li>
+                            <li><strong>Fitness Score:</strong> &ge; 1.00 (Sharpe &times; sqrt(Returns / Turnover))</li>
+                            <li><strong>Turnover:</strong> 1.0% to 70.0%</li>
+                            <li><strong>Execution Margin:</strong> &ge; 10 bps (0.0010)</li>
+                            <li><strong>Self-Correlation:</strong> &lt; 0.70 against all your active portfolio alphas</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>How does the background correlation auditor protect my submissions?</span>
+                        <span class="faq-arrow">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        Submitting an alpha with &ge; 0.70 correlation to an existing portfolio position wastes submission quota and results in platform rejection. Our background auditor queries <code>/alphas/{id}/correlations</code> in the background and tags every alpha with <code>PASS</code> or <code>FAIL</code> before you submit.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>What is FastExpr vectorization vs ts_* operators?</span>
+                        <span class="faq-arrow">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        FastExpr operates on multidimensional stock &times; time matrices. Operators prefixed with <code>ts_</code> compute time-series transforms (e.g. <code>ts_delta</code>, <code>ts_rank</code>, <code>ts_backfill</code>), while cross-sectional operators like <code>rank()</code> and <code>group_neutralize()</code> operate across all instruments at each timestamp.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>Where are my credentials and alpha formulas stored?</span>
+                        <span class="faq-arrow">▼</span>
+                    </div>
+                    <div class="faq-answer">
+                        All formulas, backtest logs, and candidate records are stored locally in your private SQLite database (<code>alphas_audit.db</code>). Raw BRAIN credentials remain strictly in memory and are never committed or exposed.
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid rgba(234, 226, 211, 0.08); padding-top: 1rem;">
+                <span style="font-size: 0.75rem; color: var(--text-muted);">
+                    Official WorldQuant Support: <a href="https://support.worldquantbrain.com" target="_blank" style="color: var(--color-wet-sand);">support.worldquantbrain.com</a>
+                </span>
             </div>
         </div>
     </div>

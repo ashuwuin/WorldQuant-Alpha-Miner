@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quantum Alpha Studio - Executive Dashboard</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <meta name="description" content="Quantum Alpha Studio - Auto-Pilot Executive Dashboard for WorldQuant BRAIN Consultants.">
+    <link rel="canonical" href="https://alpha.quantum/dashboard">
+    <link rel="icon" href="/static/img/alpha_icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.5">
     <style>
         .dash-container {
             max-width: 1240px;
@@ -194,6 +196,48 @@
     </style>
 </head>
 <body>
+    <!-- Accessibility Skip Link -->
+    <a href="#main-dashboard-content" class="skip-to-content">Skip to content</a>
+
+    <!-- Top Scroll Progress Indicator -->
+    <div id="scroll-progress"></div>
+
+    <!-- Mobile Responsive Top Header Bar -->
+    <div class="mobile-top-bar">
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 26px; height: 26px;">
+            <span style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.08em; color: var(--color-bright-white);">ALPHA DASHBOARD</span>
+        </div>
+        <button class="btn-mobile-menu" onclick="toggleMobileDrawer()" aria-label="Open mobile navigation">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+    </div>
+
+    <!-- Mobile Drawer & Backdrop -->
+    <div id="mobile-backdrop" class="mobile-drawer-backdrop" onclick="toggleMobileDrawer(false)"></div>
+    <aside id="mobile-drawer" class="mobile-nav-drawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 28px; height: 28px;">
+                <span style="font-weight: 800; font-size: 0.9rem; letter-spacing: 0.1em; color: var(--color-bright-white);">QUANTUM ALPHA</span>
+            </div>
+            <button onclick="toggleMobileDrawer(false)" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer;">✕</button>
+        </div>
+        <nav style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
+            <a href="/studio" class="mobile-drawer-link">Overview & Leaderboard</a>
+            <a href="/studio#portfolio" class="mobile-drawer-link">Live Portfolio</a>
+            <a href="/studio#studio" class="mobile-drawer-link">Alpha Studio</a>
+            <a href="/studio#datalib" class="mobile-drawer-link">Data Library (4,367)</a>
+            <div style="height: 1px; background: rgba(234, 226, 211, 0.1); margin: 0.75rem 0;"></div>
+            <a href="/dashboard" class="mobile-drawer-link active">Auto-Pilot Dashboard</a>
+            <a href="/privacy" class="mobile-drawer-link">Privacy Policy</a>
+            <a href="/terms" class="mobile-drawer-link">Terms & Governance</a>
+        </nav>
+        <div style="font-size: 0.725rem; color: var(--text-muted); border-top: 1px solid rgba(234, 226, 211, 0.08); padding-top: 1rem;">
+            WorldQuant BRAIN Consultant Connected
+        </div>
+    </aside>
+
     <!-- Metallic Alpha Splash Screen Overlay (Screenshot 2026-10-19 at 3.15.51 AM) -->
     <div id="alpha-splash-screen" class="alpha-splash-overlay" onclick="dismissAlphaSplash()">
         <div class="splash-ambient-aura"></div>
@@ -290,7 +334,7 @@
         </nav>
     </aside>
 
-    <div class="dash-container">
+    <main id="main-dashboard-content" class="dash-container">
         <!-- Top Executive Navbar -->
         <header class="dash-header">
             <div style="display: flex; align-items: center; gap: 0.85rem;">
@@ -541,19 +585,29 @@
         </section>
 
         <!-- Executive Footer -->
-        <footer style="display: flex; justify-content: space-between; align-items: center; padding-top: 1.5rem; border-top: 1px solid var(--border-color); font-size: 0.775rem; color: var(--text-muted);">
+        <footer style="display: flex; justify-content: space-between; align-items: center; padding-top: 1.5rem; border-top: 1px solid var(--border-color); font-size: 0.775rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.75rem;">
             <div>
                 Quantum Alpha Studio · Powered by WorldQuant BRAIN API Gateway
             </div>
-            <div>
-                <a href="/studio" style="color: var(--accent-cyan); text-decoration: none; margin-left: 1rem;">
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <a href="/privacy" style="color: var(--text-muted); text-decoration: none;">Privacy Policy</a>
+                <span style="opacity: 0.3;">•</span>
+                <a href="/terms" style="color: var(--text-muted); text-decoration: none;">Terms &amp; Governance</a>
+                <span style="opacity: 0.3;">•</span>
+                <a href="/studio" style="color: var(--accent-cyan); text-decoration: none;">
                     Open Advanced Studio &amp; Data Library (4,367 Fields) ↗
                 </a>
             </div>
         </footer>
-    </div>
+    </main>
+
+    <!-- Floating Back to Top Button -->
+    <button id="btn-back-to-top" class="btn-back-to-top" aria-label="Back to top">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="18 15 12 9 6 15"></polyline></svg>
+    </button>
 
     <script src="/static/js/particles.js"></script>
+    <script src="/static/js/app.js"></script>
     <script src="/static/js/engine_ollama.js"></script>
     <script>
         let currentCandidateAlphaId = null;

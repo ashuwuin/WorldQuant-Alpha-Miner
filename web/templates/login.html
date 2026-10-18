@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum Alpha Studio - Login</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%230284c7%22/><circle cx=%2250%22 cy=%2250%22 r=%2220%22 fill=%22%2338bdf8%22/></svg>">
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <title>Quantum Alpha Studio - WorldQuant BRAIN Login</title>
+    <meta name="description" content="Quantum Alpha Studio - Secure Gateway for WorldQuant BRAIN Consultants.">
+    <link rel="canonical" href="https://alpha.quantum/login">
+    <link rel="icon" href="/static/img/alpha_icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.5">
     <style>
         .login-wrapper {
             min-height: 100vh;
@@ -157,7 +159,12 @@
 
                 <div class="form-group">
                     <label class="form-label">WorldQuant BRAIN Password</label>
-                    <input type="password" id="login-password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password">
+                    <div class="input-with-toggle">
+                        <input type="password" id="login-password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password" style="padding-right: 2.75rem;">
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)" title="Show/Hide password" aria-label="Toggle password visibility">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; font-size: 0.775rem; color: var(--text-muted);">
@@ -173,14 +180,33 @@
             </form>
 
             <div class="login-footer">
-                Direct authentication verifies via <code style="color: #38bdf8;">api.worldquantbrain.com</code>.<br>
-                Need an account? <a href="https://worldquantbrain.com" target="_blank">Sign up at WorldQuant BRAIN</a>
+                Direct authentication verifies via <code style="color: var(--color-wet-sand);">api.worldquantbrain.com</code>.<br>
+                Need an account? <a href="https://worldquantbrain.com" target="_blank">Sign up at WorldQuant BRAIN</a><br>
+                <div style="margin-top: 0.65rem; display: flex; justify-content: center; gap: 1rem; font-size: 0.725rem;">
+                    <a href="/privacy">Privacy Policy</a>
+                    <span style="opacity: 0.3;">•</span>
+                    <a href="/terms">Terms &amp; Governance</a>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="/static/js/particles.js"></script>
     <script>
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+                btn.title = 'Hide password';
+            } else {
+                input.type = 'password';
+                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+                btn.title = 'Show password';
+            }
+        }
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim();

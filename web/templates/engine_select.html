@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quantum Alpha Studio - Discovery Engine Setup</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <meta name="description" content="Quantum Alpha Studio - Configure your quantitative alpha discovery and synthesis engine.">
+    <link rel="canonical" href="https://alpha.quantum/engine-select">
+    <link rel="icon" href="/static/img/alpha_icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.5">
     <style>
         .engine-container {
             max-width: 1140px;
@@ -241,7 +243,7 @@
             }
 
             statusSpan.textContent = 'Validating key...';
-            statusSpan.style.color = '#38bdf8';
+            statusSpan.style.color = 'var(--color-wet-sand)';
 
             try {
                 const res = await fetch('/api/engine/validate-cloud-key', {

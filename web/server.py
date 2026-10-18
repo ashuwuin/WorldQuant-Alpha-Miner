@@ -18,9 +18,11 @@ import csv
 import pandas as pd
 import requests
 from fastapi import FastAPI, Request, BackgroundTasks, Query
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse, Response, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel
 
 from pipeline.config import PipelineConfig
@@ -31,7 +33,63 @@ from pipeline.engine_algorithmic import AlgorithmicEngine
 from pipeline.engine_ai import CloudAIEngine
 from pipeline.correlation_worker import BackgroundCorrelationWorker
 
-app = FastAPI(title="Quantum Alpha Studio - WorldQuant BRAIN", version="2.5.0")
+app = FastAPI(title="Quantum Alpha Studio - WorldQuant BRAIN", version="2.5.0", docs_url=None, redoc_url=None)
+
+# ==============================================================================
+# Security & Rate Limiting Infrastructure
+# ==============================================================================
+REQUEST_HISTORY: Dict[str, List[float]] = {}
+RATE_LIMIT_LOCK = threading.Lock()
+
+def check_rate_limit(client_id: str, limit: int = 20, window: int = 60) -> bool:
+    """Sliding-window rate limiter preventing brute-force & endpoint abuse."""
+    now = time.time()
+    with RATE_LIMIT_LOCK:
+        history = REQUEST_HISTORY.setdefault(client_id, [])
+        cutoff = now - window
+        REQUEST_HISTORY[client_id] = [t for t in history if t > cutoff]
+        if len(REQUEST_HISTORY[client_id]) >= limit:
+            return False
+        REQUEST_HISTORY[client_id].append(now)
+        return True
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    path = request.url.path
+
+    # Rate limit sensitive authentication and simulation dispatch endpoints
+    if path in ("/api/auth/login", "/api/simulate"):
+        if not check_rate_limit(f"{client_ip}:{path}", limit=12, window=60):
+            return JSONResponse(status_code=429, content={"error": "Too many requests. Rate limit active (12 requests/min)."})
+
+    response = await call_next(request)
+
+    # Institutional Security Headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://api.worldquantbrain.com; "
+        "font-src 'self' data:; "
+        "frame-ancestors 'none';"
+    )
+    return response
 
 # Setup directories
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
@@ -41,6 +99,14 @@ DATA_FIELDS_CSV = os.path.join(PARENT_DIR, "data", "data_fields_catalog.csv")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        if request.url.path.startswith("/api/"):
+            return JSONResponse(status_code=404, content={"error": "Quant endpoint not found"})
+        return templates.TemplateResponse(request=request, name="404.html", status_code=404)
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
 
 # In-memory data fields cache
 DATA_FIELDS_DF: Optional[pd.DataFrame] = None
@@ -69,13 +135,19 @@ def is_system_idle() -> bool:
 
 CORRELATION_WORKER = BackgroundCorrelationWorker(db_path=DB_PATH, is_idle_func=is_system_idle)
 
+from contextlib import contextmanager
+
 # User sessions cache
 USER_SESSIONS: Dict[str, Dict[str, Any]] = {}
 
+@contextmanager
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 def compute_tier(fitness: Optional[float], sharpe: Optional[float]) -> str:
     if fitness is not None and fitness >= 2.50:
@@ -176,6 +248,70 @@ async def studio_page(request: Request, background_tasks: BackgroundTasks):
         CORRELATION_WORKER.start(client)
 
     return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request):
+    return templates.TemplateResponse(request=request, name="privacy.html")
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page(request: Request):
+    return templates.TemplateResponse(request=request, name="terms.html")
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    return """User-agent: *
+Allow: /
+Allow: /login
+Allow: /privacy
+Allow: /terms
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /studio
+
+Sitemap: https://alpha.quantum/sitemap.xml
+"""
+
+@app.get("/sitemap.xml", response_class=Response)
+async def sitemap_xml():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://alpha.quantum/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://alpha.quantum/login</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://alpha.quantum/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://alpha.quantum/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>"""
+    return Response(content=xml, media_type="application/xml")
+
+@app.get("/llms.txt", response_class=PlainTextResponse)
+async def llms_txt():
+    return """# Quantum Alpha Studio
+> Autonomous WorldQuant BRAIN portfolio synchronization and institutional alpha discovery portal.
+
+## Overview
+Quantum Alpha Studio accelerates quantitative investment factor research for WorldQuant BRAIN consultants. It interfaces with the BRAIN API to simulate FastExpr formulas, evaluate econometric hurdles (Sharpe, Fitness, Turnover, Correlation), and manage portfolio candidate pipelines.
+
+## Architectural Capabilities
+- Algorithmic & AI-Driven Alpha Synthesis: Generates cross-sectional, mean-reversion, and momentum alphas.
+- Background Correlation Auditing: Pre-screens candidate alphas against active portfolio submissions to verify cross-correlation < 0.70.
+- Institutional Hurdle Verification: Verifies Sharpe >= 1.25, Fitness >= 1.0, Margin >= 10 bps, Turnover < 70%.
+- Local Database Vault: Encrypts and archives historical simulation logs and factor expressions in SQLite.
+"""
 
 # ==============================================================================
 # Authentication & User Summary Endpoints

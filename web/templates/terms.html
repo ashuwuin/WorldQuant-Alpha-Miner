@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms & Conditions | Quantum Alpha Studio</title>
+    <meta name="description" content="Quantum Alpha Studio - Terms & Conditions and Quantitative Research Governance.">
+    <link rel="icon" href="/static/img/alpha_icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .legal-container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem 5rem 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        .legal-card {
+            background: rgba(42, 39, 37, 0.88);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(234, 226, 211, 0.12);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        }
+        .legal-card h1 {
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: var(--color-bright-white);
+            margin-bottom: 0.5rem;
+        }
+        .legal-card h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--color-wet-sand);
+            margin-top: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .legal-card p, .legal-card li {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+            margin-bottom: 0.85rem;
+        }
+        .legal-card ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+
+    <div class="legal-container">
+        <div style="margin-bottom: 1.5rem;">
+            <a href="/dashboard" style="color: var(--color-wet-sand); text-decoration: none; font-size: 0.85rem; font-weight: 600;">
+                &larr; Back to Dashboard
+            </a>
+        </div>
+
+        <div class="legal-card">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 32px; height: 32px;">
+                <span style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--color-luscious-lime); text-transform: uppercase;">Governance // Terms</span>
+            </div>
+
+            <h1>Terms & Conditions of Quantitative Research</h1>
+            <p><em>Last updated: October 2026</em></p>
+
+            <h2>1. Platform Compliance with WorldQuant BRAIN</h2>
+            <p>
+                Quantum Alpha Studio is an independent quantitative research acceleration gateway. All automated simulations, factor audits, and alpha submissions must strictly comply with WorldQuant BRAIN platform rules, code of conduct, and terms of service.
+            </p>
+
+            <h2>2. No Financial Advice Disclaimer</h2>
+            <p>
+                All statistical metrics, backtest evaluations, Sharpe ratios, and fitness calculations generated within this platform are for academic, research, and algorithmic competition purposes only. Nothing within this software constitutes personalized investment advice or an offer of financial securities.
+            </p>
+
+            <h2>3. Safe Submission & Risk Governance</h2>
+            <p>
+                Users maintain complete control over which alphas are submitted to live portfolio evaluation. The auto-pilot pipeline generates and audits candidates against platform hurdles (Sharpe &ge; 1.25, Self-Correlation &lt; 0.70, Turnover &lt; 70%), but final cloud submission requires human confirmation or explicitly authorized consultant credentials.
+            </p>
+        </div>
+    </div>
+
+    <script src="/static/js/particles.js"></script>
+</body>
+</html>
