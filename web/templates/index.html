@@ -9,6 +9,21 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- Metallic Alpha Splash Screen Overlay (Screenshot 2026-10-19 at 3.15.51 AM) -->
+    <div id="alpha-splash-screen" class="alpha-splash-overlay" onclick="dismissAlphaSplash()">
+        <div class="splash-ambient-aura"></div>
+        <div class="splash-hud-radar"></div>
+        <div class="splash-content">
+            <img src="/static/img/alpha_logo.svg" alt="ALPHA QUANTUM" class="splash-logo-img">
+            <div class="splash-title">QUANTUM ALPHA STUDIO</div>
+            <div class="splash-telemetry">SYS.VER // 2.5.0-INSTITUTIONAL • NEURAL TELEMETRY READY</div>
+            <div class="splash-progress-track">
+                <div class="splash-progress-bar"></div>
+            </div>
+            <div class="splash-skip-hint">Click anywhere or press any key to enter</div>
+        </div>
+    </div>
+
     <!-- Background Ambient Bioluminescent Canvas -->
     <canvas id="particle-canvas"></canvas>
 
@@ -16,16 +31,9 @@
     <!-- LEFT VERTICAL FLOATING DOCK (Pelagos Systems Signature Navigation)    -->
     <!-- ===================================================================== -->
     <aside class="pelagos-dock-wrapper">
-        <!-- Constellation Brand Cluster Icon -->
+        <!-- Metallic Alpha Brand Cluster Icon -->
         <div class="dock-constellation" onclick="switchTab('dashboard')" title="Quantum Alpha Studio">
-            <svg viewBox="0 0 32 32" fill="none">
-                <circle cx="16" cy="7" r="2.2" fill="#38bdf8" />
-                <circle cx="9" cy="15" r="2.2" fill="#38bdf8" />
-                <circle cx="16" cy="15" r="3.0" fill="#38bdf8" />
-                <circle cx="23" cy="15" r="2.2" fill="#38bdf8" />
-                <circle cx="12" cy="23" r="2.2" fill="#38bdf8" />
-                <circle cx="20" cy="23" r="2.2" fill="#38bdf8" />
-            </svg>
+            <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 28px; height: 28px; filter: drop-shadow(0 0 10px rgba(174, 143, 96, 0.6));">
         </div>
 
         <!-- Vertical Pill Dock -->
@@ -35,7 +43,7 @@
                 <button class="dock-btn active" data-tab="dashboard" onclick="switchTab('dashboard')" aria-label="Dashboard & Overview">
                     <svg viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10"/>
-                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="#38bdf8" opacity="0.4"/>
+                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="#AE8F60" opacity="0.4"/>
                         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
                     </svg>
                 </button>
@@ -60,7 +68,7 @@
                     <svg viewBox="0 0 24 24">
                         <path d="M12 2v20M2 12h20"/>
                         <circle cx="12" cy="12" r="4"/>
-                        <circle cx="12" cy="12" r="1" fill="#38bdf8"/>
+                        <circle cx="12" cy="12" r="1" fill="#AE8F60"/>
                     </svg>
                 </button>
                 <div class="dock-tooltip">Alpha Studio & Simulator</div>
@@ -76,6 +84,27 @@
                     </svg>
                 </button>
                 <div class="dock-tooltip">Data Library (4,367)</div>
+            </div>
+
+            <!-- Sleek Dock Divider -->
+            <div style="width: 22px; height: 1px; background: rgba(234, 226, 211, 0.12); margin: 2px 0;"></div>
+
+            <!-- Item 5: Auto-Pilot Dashboard Link -->
+            <div class="dock-item">
+                <a href="/dashboard" class="dock-btn" aria-label="Auto-Pilot Executive Dashboard">
+                    <svg viewBox="0 0 24 24">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                </a>
+                <div class="dock-tooltip">Auto-Pilot Portal</div>
+            </div>
+
+            <!-- Item 6: User Status Orb -->
+            <div class="dock-item">
+                <div class="dock-user-orb" title="WorldQuant BRAIN Consultant Active" onclick="window.location.href='/dashboard'">
+                    <span class="dock-user-status-dot"></span>
+                </div>
+                <div class="dock-tooltip">Consultant Online</div>
             </div>
         </nav>
     </aside>
@@ -96,7 +125,7 @@
                     <span class="status-dot"></span> BRAIN Connected
                 </div>
                 <div id="corr-worker-badge" class="corr-worker-badge" style="display: none;" title="Background platform correlation auditor">
-                    <span class="status-dot is-live" style="background: #38bdf8;"></span>
+                    <span class="status-dot is-live" style="background: #91A673;"></span>
                     <span id="corr-worker-label">Auditing correlations...</span>
                 </div>
                 <a href="/dashboard" class="btn-sync" title="Go to Auto-Pilot Executive Dashboard">

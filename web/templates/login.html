@@ -19,13 +19,13 @@
         .login-card {
             max-width: 440px;
             width: 100%;
-            background: rgba(5, 10, 22, 0.88);
+            background: rgba(42, 39, 37, 0.88);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(56, 189, 248, 0.22);
+            border: 1px solid rgba(234, 226, 211, 0.12);
             border-radius: 20px;
             padding: 2.5rem;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.12);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(174, 143, 96, 0.15);
         }
         .login-brand {
             display: flex;
@@ -36,13 +36,13 @@
         .login-brand-icon {
             width: 42px;
             height: 42px;
-            background: rgba(56, 189, 248, 0.12);
-            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: rgba(174, 143, 96, 0.15);
+            border: 1px solid rgba(174, 143, 96, 0.4);
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+            box-shadow: 0 0 20px rgba(174, 143, 96, 0.25);
         }
         .form-group {
             margin-bottom: 1.25rem;
@@ -56,8 +56,8 @@
         }
         .form-input {
             width: 100%;
-            background: rgba(3, 7, 18, 0.8);
-            border: 1px solid var(--border-color);
+            background: rgba(24, 22, 21, 0.8);
+            border: 1px solid rgba(234, 226, 211, 0.15);
             color: var(--text-primary);
             padding: 0.75rem 1rem;
             border-radius: 10px;
@@ -67,25 +67,27 @@
         }
         .form-input:focus {
             border-color: var(--accent-cyan);
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+            box-shadow: 0 0 15px rgba(174, 143, 96, 0.35);
         }
         .btn-submit {
             width: 100%;
             padding: 0.85rem;
-            background: linear-gradient(135deg, #0284c7, #2563eb);
-            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: linear-gradient(135deg, #AE8F60, #CDB286);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             border-radius: 9999px;
-            color: white;
+            color: #181615;
             font-weight: 700;
             font-size: 0.85rem;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             cursor: pointer;
             transition: all 0.25s ease;
-            box-shadow: 0 4px 25px rgba(14, 165, 233, 0.4);
+            box-shadow: 0 4px 25px rgba(174, 143, 96, 0.45);
         }
         .btn-submit:hover {
-            box-shadow: 0 6px 35px rgba(14, 165, 233, 0.65);
+            box-shadow: 0 6px 35px rgba(174, 143, 96, 0.75);
+            background: linear-gradient(135deg, #F6F2F1, #EAE2D3);
+            color: #181615;
             transform: translateY(-1px);
         }
         .auth-error {
@@ -112,20 +114,28 @@
     </style>
 </head>
 <body>
+    <!-- Metallic Alpha Splash Screen Overlay (Screenshot 2026-10-19 at 3.15.51 AM) -->
+    <div id="alpha-splash-screen" class="alpha-splash-overlay" onclick="dismissAlphaSplash()">
+        <div class="splash-ambient-aura"></div>
+        <div class="splash-hud-radar"></div>
+        <div class="splash-content">
+            <img src="/static/img/alpha_logo.svg" alt="ALPHA QUANTUM" class="splash-logo-img">
+            <div class="splash-title">QUANTUM ALPHA STUDIO</div>
+            <div class="splash-telemetry">SYS.VER // 2.5.0-INSTITUTIONAL • NEURAL TELEMETRY READY</div>
+            <div class="splash-progress-track">
+                <div class="splash-progress-bar"></div>
+            </div>
+            <div class="splash-skip-hint">Click anywhere or press any key to enter</div>
+        </div>
+    </div>
+
     <canvas id="particle-canvas"></canvas>
 
     <div class="login-wrapper">
         <div class="login-card">
             <div class="login-brand">
                 <div class="login-brand-icon">
-                    <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-                        <circle cx="16" cy="7" r="2.2" fill="#38bdf8" />
-                        <circle cx="9" cy="15" r="2.2" fill="#38bdf8" />
-                        <circle cx="16" cy="15" r="3.0" fill="#38bdf8" />
-                        <circle cx="23" cy="15" r="2.2" fill="#38bdf8" />
-                        <circle cx="12" cy="23" r="2.2" fill="#38bdf8" />
-                        <circle cx="20" cy="23" r="2.2" fill="#38bdf8" />
-                    </svg>
+                    <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 26px; height: 26px; filter: drop-shadow(0 0 6px rgba(174, 143, 96, 0.5));">
                 </div>
                 <div>
                     <h2 style="font-size: 1.15rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;">QUANTUM ALPHA STUDIO</h2>

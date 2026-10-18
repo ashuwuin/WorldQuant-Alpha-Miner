@@ -1440,3 +1440,23 @@ async function pollCorrelationWorker() {
     }
 }
 
+// ==========================================================================
+// SEXY METALLIC ALPHA SPLASH SCREEN DISMISSAL (Screenshot 2026-10-19 at 3.15.51 AM)
+// ==========================================================================
+window.dismissAlphaSplash = function() {
+    const splash = document.getElementById('alpha-splash-screen');
+    if (!splash || splash.classList.contains('fade-out')) return;
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+        splash.style.display = 'none';
+    }, 850);
+};
+
+// Automatic fade-out after 1.35 seconds, or immediate on keypress / click
+setTimeout(() => {
+    if (window.dismissAlphaSplash) window.dismissAlphaSplash();
+}, 1350);
+
+window.addEventListener('keydown', () => {
+    if (window.dismissAlphaSplash) window.dismissAlphaSplash();
+}, { once: true });

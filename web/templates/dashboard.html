@@ -8,20 +8,26 @@
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
         .dash-container {
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 1240px;
+            margin: 0 auto 0 84px;
             padding: 1.5rem 2rem 4rem 2rem;
             position: relative;
             z-index: 1;
+        }
+        @media (max-width: 900px) {
+            .dash-container {
+                margin: 0 auto;
+                padding: 1rem;
+            }
         }
         .dash-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 1rem 1.75rem;
-            background: rgba(13, 17, 26, 0.7);
+            background: rgba(42, 39, 37, 0.85);
             backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
+            border: 1px solid rgba(234, 226, 211, 0.12);
             border-radius: 16px;
             margin-bottom: 2rem;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -31,28 +37,28 @@
             align-items: center;
             gap: 0.75rem;
             background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-color);
+            border: 1px solid rgba(234, 226, 211, 0.12);
             padding: 0.4rem 0.85rem;
             border-radius: 9999px;
             font-size: 0.825rem;
         }
         .level-badge-gold {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: #000;
+            background: linear-gradient(135deg, #AE8F60, #CDB286);
+            color: #181615;
             font-weight: 800;
             font-size: 0.7rem;
             letter-spacing: 0.05em;
             padding: 0.2rem 0.55rem;
             border-radius: 9999px;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+            box-shadow: 0 0 15px rgba(174, 143, 96, 0.4);
         }
         .streak-flame {
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            background: rgba(245, 158, 11, 0.12);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
+            background: rgba(174, 143, 96, 0.15);
+            border: 1px solid rgba(174, 143, 96, 0.35);
+            color: #AE8F60;
             font-weight: 700;
             font-size: 0.85rem;
             padding: 0.35rem 0.75rem;
@@ -60,20 +66,20 @@
         }
         /* Primary Action Banner */
         .batch-action-card {
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(37, 99, 235, 0.05));
-            border: 1px solid rgba(56, 189, 248, 0.25);
+            background: linear-gradient(135deg, rgba(174, 143, 96, 0.12), rgba(58, 74, 63, 0.18));
+            border: 1px solid rgba(174, 143, 96, 0.35);
             border-radius: 20px;
             padding: 2.25rem;
             margin-bottom: 2rem;
             text-align: center;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
         .btn-run-batch {
-            background: linear-gradient(135deg, #0284c7, #2563eb);
-            color: white;
-            border: 1px solid rgba(56, 189, 248, 0.4);
+            background: linear-gradient(135deg, #AE8F60, #CDB286);
+            color: #181615;
+            border: 1px solid rgba(255, 255, 255, 0.4);
             padding: 1.1rem 2.75rem;
             font-size: 1.15rem;
             font-weight: 700;
@@ -81,7 +87,7 @@
             text-transform: uppercase;
             border-radius: 9999px;
             cursor: pointer;
-            box-shadow: 0 0 35px rgba(14, 165, 233, 0.45);
+            box-shadow: 0 0 35px rgba(174, 143, 96, 0.45);
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             display: inline-flex;
             align-items: center;
@@ -89,7 +95,9 @@
         }
         .btn-run-batch:hover {
             transform: scale(1.04);
-            box-shadow: 0 0 50px rgba(14, 165, 233, 0.7);
+            box-shadow: 0 0 50px rgba(174, 143, 96, 0.75);
+            background: linear-gradient(135deg, #F6F2F1, #EAE2D3);
+            color: #181615;
         }
         .btn-run-batch:disabled {
             opacity: 0.7;
@@ -115,9 +123,9 @@
         .progress-bar-fill {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #10b981, #06b6d4);
+            background: linear-gradient(90deg, #3A4A3F, #91A673, #AE8F60);
             transition: width 0.4s ease;
-            box-shadow: 0 0 15px #10b981;
+            box-shadow: 0 0 15px #91A673;
         }
         .steps-labels {
             display: flex;
@@ -137,8 +145,8 @@
             gap: 1rem;
         }
         .achievement-card {
-            background: rgba(13, 17, 26, 0.65);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(42, 39, 37, 0.75);
+            border: 1px solid rgba(234, 226, 211, 0.08);
             border-radius: 14px;
             padding: 1rem 1.25rem;
             display: flex;
@@ -147,8 +155,8 @@
             transition: all 0.2s ease;
         }
         .achievement-card:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-            background: rgba(20, 27, 42, 0.8);
+            border-color: rgba(174, 143, 96, 0.35);
+            background: rgba(58, 54, 51, 0.9);
             transform: translateY(-2px);
         }
         .achievement-icon {
@@ -162,9 +170,9 @@
             flex-shrink: 0;
         }
         .icon-unlocked {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+            background: rgba(145, 166, 115, 0.18);
+            border: 1px solid rgba(145, 166, 115, 0.35);
+            box-shadow: 0 0 15px rgba(145, 166, 115, 0.2);
         }
         .icon-locked {
             background: rgba(255, 255, 255, 0.03);
@@ -175,8 +183,8 @@
         /* Submission Modal Card */
         .ready-approval-card {
             display: none;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.35);
+            background: rgba(58, 74, 63, 0.4);
+            border: 1px solid rgba(145, 166, 115, 0.35);
             border-radius: 16px;
             padding: 1.75rem;
             margin-top: 1.5rem;
@@ -186,13 +194,107 @@
     </style>
 </head>
 <body>
+    <!-- Metallic Alpha Splash Screen Overlay (Screenshot 2026-10-19 at 3.15.51 AM) -->
+    <div id="alpha-splash-screen" class="alpha-splash-overlay" onclick="dismissAlphaSplash()">
+        <div class="splash-ambient-aura"></div>
+        <div class="splash-hud-radar"></div>
+        <div class="splash-content">
+            <img src="/static/img/alpha_logo.svg" alt="ALPHA QUANTUM" class="splash-logo-img">
+            <div class="splash-title">QUANTUM ALPHA STUDIO</div>
+            <div class="splash-telemetry">SYS.VER // 2.5.0-INSTITUTIONAL • NEURAL TELEMETRY READY</div>
+            <div class="splash-progress-track">
+                <div class="splash-progress-bar"></div>
+            </div>
+            <div class="splash-skip-hint">Click anywhere or press any key to enter</div>
+        </div>
+    </div>
+
+    <!-- Background Ambient Bioluminescent Canvas -->
     <canvas id="particle-canvas"></canvas>
+
+    <!-- ===================================================================== -->
+    <!-- LEFT VERTICAL FLOATING DOCK (Pelagos Systems Signature Navigation)    -->
+    <!-- ===================================================================== -->
+    <aside class="pelagos-dock-wrapper">
+        <!-- Metallic Alpha Brand Cluster Icon -->
+        <div class="dock-constellation" onclick="window.location.href='/studio'" title="Quantum Alpha Studio">
+            <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 28px; height: 28px; filter: drop-shadow(0 0 10px rgba(174, 143, 96, 0.6));">
+        </div>
+
+        <!-- Vertical Pill Dock -->
+        <nav class="pelagos-dock">
+            <div class="dock-item">
+                <a href="/studio" class="dock-btn" aria-label="Studio Overview">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="#AE8F60" opacity="0.4"/>
+                        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+                    </svg>
+                </a>
+                <div class="dock-tooltip">Overview & Leaderboard</div>
+            </div>
+
+            <div class="dock-item">
+                <a href="/studio#portfolio" class="dock-btn" aria-label="Live Active Portfolio">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M2 6c4-3 8 3 12 0s8 3 8 0"/>
+                        <path d="M2 12c4-3 8 3 12 0s8 3 8 0"/>
+                        <path d="M2 18c4-3 8 3 12 0s8 3 8 0"/>
+                    </svg>
+                </a>
+                <div class="dock-tooltip">Live Portfolio</div>
+            </div>
+
+            <div class="dock-item">
+                <a href="/studio#studio" class="dock-btn" aria-label="Alpha Studio & Simulator">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2v20M2 12h20"/>
+                        <circle cx="12" cy="12" r="4"/>
+                        <circle cx="12" cy="12" r="1" fill="#AE8F60"/>
+                    </svg>
+                </a>
+                <div class="dock-tooltip">Alpha Studio & Simulator</div>
+            </div>
+
+            <div class="dock-item">
+                <a href="/studio#datalib" class="dock-btn" aria-label="Data Library Catalog">
+                    <svg viewBox="0 0 24 24">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    </svg>
+                </a>
+                <div class="dock-tooltip">Data Library (4,367)</div>
+            </div>
+
+            <!-- Sleek Dock Divider -->
+            <div style="width: 22px; height: 1px; background: rgba(234, 226, 211, 0.12); margin: 2px 0;"></div>
+
+            <!-- Item 5: Auto-Pilot Dashboard Link (Active) -->
+            <div class="dock-item">
+                <button class="dock-btn active" aria-label="Auto-Pilot Executive Dashboard">
+                    <svg viewBox="0 0 24 24">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                </button>
+                <div class="dock-tooltip">Auto-Pilot Portal</div>
+            </div>
+
+            <!-- Item 6: User Status Orb -->
+            <div class="dock-item">
+                <div class="dock-user-orb" title="WorldQuant BRAIN Consultant Active">
+                    <span class="dock-user-status-dot"></span>
+                </div>
+                <div class="dock-tooltip">Consultant Online</div>
+            </div>
+        </nav>
+    </aside>
 
     <div class="dash-container">
         <!-- Top Executive Navbar -->
         <header class="dash-header">
             <div style="display: flex; align-items: center; gap: 0.85rem;">
-                <div class="brand-logo-icon">⚡</div>
+                <img src="/static/img/alpha_icon.svg" alt="ALPHA" style="width: 32px; height: 32px; filter: drop-shadow(0 0 8px rgba(174, 143, 96, 0.5));">
                 <div>
                     <h1 style="font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em;">QUANTUM ALPHA STUDIO</h1>
                     <span style="font-size: 0.65rem; color: var(--accent-emerald); font-weight: 700; text-transform: uppercase;">Executive Portfolio Portal</span>
