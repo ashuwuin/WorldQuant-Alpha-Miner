@@ -4,8 +4,7 @@ import json
 import sqlite3
 import time
 import uuid
-from datetime import datetime, timezone, date, timedelta
-from contextlib import contextmanager
+from datetime import datetime, timezone, timedelta
 import threading
 from typing import Dict, Any, List, Optional
 
@@ -19,10 +18,12 @@ import csv
 import pandas as pd
 import requests
 from fastapi import FastAPI, Request, BackgroundTasks, Query
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse, Response, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 
 from pipeline.config import PipelineConfig
 from pipeline.client import BrainClient
@@ -33,8 +34,55 @@ from pipeline.engine_ai import CloudAIEngine
 from pipeline.correlation_worker import BackgroundCorrelationWorker
 from pipeline.closed_loop_optimizer import ClosedLoopStudioOptimizer
 
+app = FastAPI(title="Quantum Alpha Studio - WorldQuant BRAIN", version="2.5.0", docs_url=None, redoc_url=None)
 
-app = FastAPI(title="Quantum Alpha Studio - WorldQuant BRAIN", version="2.5.0")
+# ==============================================================================
+# Security & Rate Limiting Infrastructure
+# ==============================================================================
+REQUEST_HISTORY: Dict[str, List[float]] = {}
+RATE_LIMIT_LOCK = threading.Lock()
+
+def check_rate_limit(client_id: str, limit: int = 20, window: int = 60) -> bool:
+    """Sliding-window rate limiter preventing brute-force & endpoint abuse."""
+    now = time.time()
+    with RATE_LIMIT_LOCK:
+        history = REQUEST_HISTORY.setdefault(client_id, [])
+        cutoff = now - window
+        REQUEST_HISTORY[client_id] = [t for t in history if t > cutoff]
+        if len(REQUEST_HISTORY[client_id]) >= limit:
+            return False
+        REQUEST_HISTORY[client_id].append(now)
+        return True
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    path = request.url.path
+
+    # Rate limit sensitive authentication and simulation dispatch endpoints
+    if path in ("/api/auth/login", "/api/simulate"):
+        if not check_rate_limit(f"{client_ip}:{path}", limit=12, window=60):
+            return JSONResponse(status_code=429, content={"error": "Too many requests. Rate limit active (12 requests/min)."})
+
+    response = await call_next(request)
+
+    # Institutional Security Headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://api.worldquantbrain.com; "
+        "font-src 'self' data:; "
+        "frame-ancestors 'none';"
+    )
+    return response
 
 # Setup directories
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
@@ -44,6 +92,14 @@ DATA_FIELDS_CSV = os.path.join(PARENT_DIR, "data", "data_fields_catalog.csv")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        if request.url.path.startswith("/api/"):
+            return JSONResponse(status_code=404, content={"error": "Quant endpoint not found"})
+        return templates.TemplateResponse(request=request, name="404.html", status_code=404)
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
 
 # In-memory data fields cache
 DATA_FIELDS_DF: Optional[pd.DataFrame] = None
@@ -70,9 +126,10 @@ def is_system_idle() -> bool:
             return False
     return True
 
-# Ensure database and table schema exist on startup
 DB_INSTANCE = AlphaDatabase(DB_PATH)
 CORRELATION_WORKER = BackgroundCorrelationWorker(db_path=DB_PATH, is_idle_func=is_system_idle)
+
+from contextlib import contextmanager
 
 # User sessions cache
 USER_SESSIONS: Dict[str, Dict[str, Any]] = {}
@@ -151,44 +208,103 @@ def get_current_session(request: Request) -> Optional[Dict[str, Any]]:
 
 @app.get("/", response_class=HTMLResponse)
 async def root_route(request: Request):
-    sess = get_current_session(request)
-    if sess:
-        return templates.TemplateResponse(request=request, name="index.html")
-    return templates.TemplateResponse(request=request, name="login.html")
+    return templates.TemplateResponse(request=request, name="index.html", context={"initial_tab": "dashboard"})
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse(request=request, name="login.html")
+    return templates.TemplateResponse(request=request, name="index.html", context={"initial_tab": "dashboard", "open_settings": True})
 
 @app.get("/engine-select", response_class=HTMLResponse)
 async def engine_select_page(request: Request):
-    return templates.TemplateResponse(request=request, name="engine_select.html")
+    return templates.TemplateResponse(request=request, name="index.html", context={"initial_tab": "dashboard", "open_settings": True})
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
-    sess = get_current_session(request)
-    if not sess:
-        return templates.TemplateResponse(request=request, name="login.html")
-    return templates.TemplateResponse(request=request, name="dashboard.html")
+    return templates.TemplateResponse(request=request, name="index.html", context={"initial_tab": "dashboard"})
 
 @app.get("/studio", response_class=HTMLResponse)
 async def studio_page(request: Request, background_tasks: BackgroundTasks):
     sess = get_current_session(request)
-    if not sess:
-        return RedirectResponse(url="/login")
-
-    # If the user has not synced in this session or DB is empty, run sync
     db = AlphaDatabase(DB_PATH)
-    client = sess.get("client")
-    if client and (db.count_alphas() == 0 or not sess.get("synced_on_studio", False)):
-        sess["synced_on_studio"] = True
-        background_tasks.add_task(client.sync_user_alphas, db, 150)
+    if sess:
+        client = sess.get("client")
+        if client and (db.count_alphas() == 0 or not sess.get("synced_on_studio", False)):
+            sess["synced_on_studio"] = True
+            background_tasks.add_task(client.sync_user_alphas, db, 150)
 
-    # Start non-blocking correlation worker in background
-    if client and not CORRELATION_WORKER.is_running:
-        CORRELATION_WORKER.start(client)
+        # Start non-blocking correlation worker in background
+        if client and not CORRELATION_WORKER.is_running:
+            CORRELATION_WORKER.start(client)
 
+    return templates.TemplateResponse(request=request, name="index.html", context={"initial_tab": "studio"})
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request):
+    return templates.TemplateResponse(request=request, name="privacy.html")
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/terms/document", response_class=HTMLResponse)
+async def terms_document(request: Request):
+    return templates.TemplateResponse(request=request, name="terms.html")
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    return """User-agent: *
+Allow: /
+Allow: /login
+Allow: /privacy
+Allow: /terms
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /studio
+
+Sitemap: https://alpha.quantum/sitemap.xml
+"""
+
+@app.get("/sitemap.xml", response_class=Response)
+async def sitemap_xml():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://alpha.quantum/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://alpha.quantum/login</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://alpha.quantum/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://alpha.quantum/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>"""
+    return Response(content=xml, media_type="application/xml")
+
+@app.get("/llms.txt", response_class=PlainTextResponse)
+async def llms_txt():
+    return """# Quantum Alpha Studio
+> Autonomous WorldQuant BRAIN portfolio synchronization and institutional alpha discovery portal.
+
+## Overview
+Quantum Alpha Studio accelerates quantitative investment factor research for WorldQuant BRAIN consultants. It interfaces with the BRAIN API to simulate FastExpr formulas, evaluate econometric hurdles (Sharpe, Fitness, Turnover, Correlation), and manage portfolio candidate pipelines.
+
+## Architectural Capabilities
+- Algorithmic & AI-Driven Alpha Synthesis: Generates cross-sectional, mean-reversion, and momentum alphas.
+- Background Correlation Auditing: Pre-screens candidate alphas against active portfolio submissions to verify cross-correlation < 0.70.
+- Institutional Hurdle Verification: Verifies Sharpe >= 1.25, Fitness >= 1.0, Margin >= 10 bps, Turnover < 70%.
+- Local Database Vault: Encrypts and archives historical simulation logs and factor expressions in SQLite.
+"""
 
 # ==============================================================================
 # Authentication & User Summary Endpoints
@@ -199,7 +315,7 @@ class LoginRequest(BaseModel):
     password: str
 
 @app.post("/api/auth/login")
-async def auth_login(req: LoginRequest):
+async def auth_login(req: LoginRequest, background_tasks: BackgroundTasks):
     try:
         cfg = PipelineConfig()
         sess = requests.Session()
@@ -233,18 +349,14 @@ async def auth_login(req: LoginRequest):
             "synced_on_studio": False
         }
 
-        # Dispatch initial sync in background so login response is instantaneous and does not time out
-        def _bg_initial_sync():
-            try:
-                db = AlphaDatabase(DB_PATH)
-                client.sync_user_alphas(db, max_unsubmitted=100)
-                if session_token in USER_SESSIONS:
-                    USER_SESSIONS[session_token]["synced_on_studio"] = True
-                CORRELATION_WORKER.start(client)
-            except Exception as sync_err:
-                print(f"[!] Initial sync warning: {sync_err}")
-
-        threading.Thread(target=_bg_initial_sync, daemon=True, name="InitialSyncThread").start()
+        # Run initial sync in background so login responds immediately
+        try:
+            db = AlphaDatabase(DB_PATH)
+            USER_SESSIONS[session_token]["synced_on_studio"] = True
+            background_tasks.add_task(client.sync_user_alphas, db, 150)
+            CORRELATION_WORKER.start(client)
+        except Exception as sync_err:
+            print(f"[!] Initial sync warning: {sync_err}")
 
         res = JSONResponse(content={
             "success": True,
@@ -253,6 +365,9 @@ async def auth_login(req: LoginRequest):
         })
         res.set_cookie(key="session_id", value=session_token, httponly=True, samesite="lax")
         return res
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
@@ -276,111 +391,69 @@ async def auth_me(request: Request):
 async def get_dashboard_summary(request: Request):
     sess = get_current_session(request)
     if not sess:
-        return JSONResponse(status_code=401, content={"error": "Not authenticated"})
-
-    client: BrainClient = sess.get("client")
-    user_info = sess.get("user", {})
+        return {
+            "user": None,
+            "active_count": 0,
+            "streak_days": 0,
+            "competition": None,
+            "engine": "algorithmic",
+            "cloud_provider": "gemini",
+            "gemini_model": "gemini-2.0-flash",
+            "ollama_model": "deepseek-r1:latest"
+        }
 
     try:
-        # 1. Refresh live user profile from BRAIN API
-        try:
-            p_resp = client._request_with_retry("GET", f"{client.config.api_base}/users/self")
-            if p_resp.status_code == 200:
-                profile = p_resp.json()
-                full_name = profile.get("fullName") or f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip() or user_info.get("fullName") or "Quant Researcher"
-                user_info["id"] = profile.get("id") or user_info.get("id") or "BRAIN_USER"
-                user_info["fullName"] = full_name
-                user_info["level"] = profile.get("level") or user_info.get("level") or "CONSULTANT"
-                user_info["email"] = profile.get("email") or user_info.get("email")
-        except Exception as u_err:
-            print(f"[!] Warning fetching live profile: {u_err}")
+        client = sess.get("client")
+        user_info = sess.get("user")
+        if client is None:
+            return JSONResponse(status_code=401, content={"error": "BRAIN session has no active client"})
+        # 1. Active submissions count
+        r_alphas = client._request_with_retry(
+            "GET",
+            f"{client.config.api_base}/users/self/alphas",
+            params={"status": "ACTIVE", "limit": 100, "order": "-dateSubmitted"}
+        )
+        active_alphas = r_alphas.json().get("results", []) if r_alphas.status_code == 200 else []
+        active_count = len(active_alphas)
 
-        # 2. Active submissions count from BRAIN API
-        active_count = 0
-        active_alphas = []
-        try:
-            r_alphas = client._request_with_retry(
-                "GET",
-                f"{client.config.api_base}/users/self/alphas",
-                params={"status": "ACTIVE", "limit": 100, "order": "-dateSubmitted"}
-            )
-            if r_alphas.status_code == 200:
-                a_json = r_alphas.json()
-                active_count = a_json.get("count", len(a_json.get("results", [])))
-                active_alphas = a_json.get("results", [])
-        except Exception as a_err:
-            print(f"[!] Warning fetching active alphas: {a_err}")
+        # 2. Submission Streak calculation
+        dates = set()
+        for a in active_alphas:
+            d_str = a.get("dateSubmitted") or a.get("dateCreated")
+            if d_str:
+                dates.add(d_str[:10])
+        sorted_dates = sorted(list(dates), reverse=True)
 
-        # 3. Live Submission Streak from official BRAIN /users/self/streak
-        streak_days = 0
-        try:
-            r_streak = client._request_with_retry("GET", f"{client.config.api_base}/users/self/streak")
-            if r_streak.status_code == 200:
-                st_json = r_streak.json()
-                streak_days = st_json.get("active", 0)
-        except Exception as s_err:
-            print(f"[!] Warning fetching streak API: {s_err}")
+        today = datetime.now(timezone.utc).date()
+        streak = 0
+        check_date = today
+        if sorted_dates and sorted_dates[0] < str(today):
+            yesterday = today - timedelta(days=1)
+            if sorted_dates[0] == str(yesterday):
+                check_date = yesterday
+        for d in sorted_dates:
+            if d == str(check_date):
+                streak += 1
+                check_date = check_date - timedelta(days=1)
+            else:
+                break
+        streak_days = streak
 
-        # Fallback streak calculation from active_alphas dates if needed
-        if streak_days == 0 and active_alphas:
-            dates = set()
-            for a in active_alphas:
-                d_str = a.get("dateSubmitted") or a.get("dateCreated")
-                if d_str:
-                    dates.add(d_str[:10])
-            sorted_dates = sorted(list(dates), reverse=True)
-            today = date.today()
-            calc_streak = 0
-            check_date = today
-            if sorted_dates and sorted_dates[0] < str(today):
-                yesterday = today - timedelta(days=1)
-                if sorted_dates[0] == str(yesterday):
-                    check_date = yesterday
-            for d in sorted_dates:
-                if d == str(check_date):
-                    calc_streak += 1
-                    check_date = check_date - timedelta(days=1)
-                else:
-                    break
-            streak_days = calc_streak
-
-        # 4. Live Competitions from BRAIN API
-        comp_data = None
-        try:
-            r_comp = client._request_with_retry("GET", f"{client.config.api_base}/users/self/competitions")
-            comps = r_comp.json().get("results", []) if r_comp.status_code == 200 else []
-            accepted_comp = next((c for c in comps if c.get("status") in ("ACCEPTED", "ACTIVE")), None)
-            if not accepted_comp:
-                r_all = client._request_with_retry("GET", f"{client.config.api_base}/competitions")
-                if r_all.status_code == 200:
-                    all_comps = r_all.json().get("results", [])
-                    accepted_comp = next((c for c in all_comps if c.get("status") in ("ACCEPTED", "ACTIVE")), None)
-            if accepted_comp:
-                comp_data = {
-                    "name": accepted_comp.get("name", "Active Competition"),
-                    "id": accepted_comp.get("id", "challenge"),
-                    "status": accepted_comp.get("status", "ACCEPTED")
-                }
-        except Exception as c_err:
-            print(f"[!] Warning fetching competitions: {c_err}")
-
-        # 5. Live Achievements & Verified Milestones from BRAIN API
-        achievements = []
-        try:
-            r_ach = client._request_with_retry("GET", f"{client.config.api_base}/users/self/achievements")
-            if r_ach.status_code == 200:
-                ach_json = r_ach.json()
-                if isinstance(ach_json, list):
-                    achievements = ach_json
-        except Exception as ach_err:
-            print(f"[!] Warning fetching achievements: {ach_err}")
+        # 3. Active Enrolled Competitions
+        r_comp = client._request_with_retry("GET", f"{client.config.api_base}/competitions")
+        comps = r_comp.json().get("results", []) if r_comp.status_code == 200 else []
+        accepted_comp = next((c for c in comps if c.get("status") == "ACCEPTED"), None)
+        comp_data = {
+            "name": accepted_comp.get("name"),
+            "id": accepted_comp.get("id"),
+            "status": accepted_comp.get("status"),
+        } if accepted_comp else None
 
         return {
             "user": user_info,
             "active_count": active_count,
             "streak_days": streak_days,
             "competition": comp_data,
-            "achievements": achievements,
             "engine": sess.get("engine", "algorithmic"),
             "ollama_model": sess.get("ollama_model", "deepseek-r1:latest"),
             "cloud_provider": sess.get("cloud_provider", "gemini")
@@ -424,6 +497,39 @@ async def get_ollama_models(endpoint: str = "http://localhost:11434"):
     models = CloudAIEngine.fetch_ollama_models(endpoint)
     return {"endpoint": endpoint, "models": models, "available": len(models) > 0}
 
+class GeneratePreviewRequest(BaseModel):
+    engine: Optional[str] = None
+    pattern_idx: Optional[int] = Field(default=None, ge=0, le=4)
+    prompt: Optional[str] = Field(default=None, max_length=500)
+
+def generate_candidate(req: GeneratePreviewRequest, sess: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    engine = req.engine or (sess.get("engine", "algorithmic") if sess else "algorithmic")
+    if engine == "algorithmic":
+        return AlgorithmicEngine.generate_candidate(pattern_idx=req.pattern_idx)
+    if engine == "ollama":
+        return CloudAIEngine.generate_alpha(
+            provider="ollama",
+            endpoint=sess.get("ollama_endpoint", "http://localhost:11434") if sess else "http://localhost:11434",
+            model=sess.get("ollama_model", "deepseek-r1:latest") if sess else "deepseek-r1:latest",
+            prompt=req.prompt,
+        )
+    if engine in ("cloud_ai", "gemini", "openai", "ai"):
+        provider = sess.get("cloud_provider", "gemini") if sess else "gemini"
+        if engine == "openai":
+            provider = "openai"
+        key = (sess.get("cloud_api_key") if sess else None) or os.getenv("OPENAI_API_KEY" if provider == "openai" else "GEMINI_API_KEY")
+        model = (sess.get("gemini_model") if sess else None) or os.getenv("GEMINI_MODEL") or "gemini-2.0-flash"
+        return CloudAIEngine.generate_alpha(provider=provider, api_key=key, model=model if provider == "gemini" else None, prompt=req.prompt)
+    raise ValueError("Unsupported generation engine")
+
+@app.post("/api/engine/generate-preview")
+async def generate_preview(req: GeneratePreviewRequest, request: Request):
+    try:
+        candidate = await run_in_threadpool(generate_candidate, req, get_current_session(request))
+        return {"success": True, "candidate": candidate}
+    except (ValueError, RuntimeError) as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+
 # ==============================================================================
 # Batch Generation & Safe Auto-Pilot Execution
 # ==============================================================================
@@ -436,25 +542,6 @@ def run_batch_simulation_task(task_id: str, candidate: Dict[str, Any], sess: Opt
     try:
         client = sess.get("client") if sess else BrainClient(PipelineConfig())
         db = AlphaDatabase(DB_PATH)
-
-        spec = {
-            "type": "REGULAR",
-            "settings": {
-                "instrumentType": "EQUITY",
-                "region": candidate.get("region", "USA"),
-                "universe": candidate.get("universe", "TOP3000"),
-                "delay": candidate.get("delay", 1),
-                "decay": candidate.get("decay", 20),
-                "neutralization": candidate.get("neutralization", "SUBINDUSTRY"),
-                "truncation": 0.08,
-                "pasteurization": "ON",
-                "unitHandling": "VERIFY",
-                "nanHandling": "OFF",
-                "language": "FASTEXPR",
-                "visualization": False
-            },
-            "regular": candidate["expr"]
-        }
 
         # 1. Simulation
         res = client.simulate_candidate(candidate)
@@ -481,7 +568,9 @@ def run_batch_simulation_task(task_id: str, candidate: Dict[str, Any], sess: Opt
             "turnover_pct": round((eval_res.turnover or 0.0) * 100, 2),
             "margin_bps": round((eval_res.margin or 0.0) * 10000, 2),
             "drawdown_pct": round((eval_res.drawdown or 0.0) * 100, 2),
-            "is_submittable": 1 if eval_res.is_submittable else 0
+            "is_submittable": 1 if eval_res.is_submittable else 0,
+            "max_self_correlation": eval_res.max_self_correlation,
+            "fail_reasons": eval_res.fail_reasons,
         }
         if eval_res.is_submittable:
             task["logs"].append(f"[✓] Hurdle passed! Sharpe: {eval_res.sharpe:.2f}, Fitness: {eval_res.fitness:.2f}. Alpha ready for submission.")
@@ -493,34 +582,14 @@ def run_batch_simulation_task(task_id: str, candidate: Dict[str, Any], sess: Opt
         task["candidate"] = None
 
 @app.post("/api/engine/run-batch")
-async def run_batch(request: Request, background_tasks: BackgroundTasks):
+async def run_batch(request: Request, background_tasks: BackgroundTasks, req: GeneratePreviewRequest = GeneratePreviewRequest()):
     sess = get_current_session(request)
     task_id = str(uuid.uuid4())
-
-    engine_type = sess.get("engine", "algorithmic") if sess else "algorithmic"
-
-    if engine_type == "ollama":
-        try:
-            candidate = CloudAIEngine.generate_alpha(
-                provider="ollama",
-                endpoint=sess.get("ollama_endpoint", "http://localhost:11434"),
-                model=sess.get("ollama_model", "deepseek-r1:latest")
-            )
-        except Exception:
-            candidate = AlgorithmicEngine.generate_candidate()
-    elif engine_type in ("cloud_ai", "gemini", "ai"):
-        try:
-            cloud_key = (sess.get("cloud_api_key") if sess else None) or os.getenv("GEMINI_API_KEY")
-            candidate = CloudAIEngine.generate_alpha(
-                provider=sess.get("cloud_provider", "gemini") if sess else "gemini",
-                api_key=cloud_key,
-                model=sess.get("gemini_model") or os.getenv("GEMINI_MODEL") or "gemini-2.0-flash"
-            )
-        except Exception as e:
-            print(f"[!] AI Generation error ({e}), falling back to algorithmic engine")
-            candidate = AlgorithmicEngine.generate_candidate()
-    else:
-        candidate = AlgorithmicEngine.generate_candidate()
+    engine_type = req.engine or (sess.get("engine", "algorithmic") if sess else "algorithmic")
+    try:
+        candidate = await run_in_threadpool(generate_candidate, req, sess)
+    except (ValueError, RuntimeError) as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
 
     SIMULATION_TASKS[task_id] = {
         "status": "SIMULATING",
@@ -529,11 +598,12 @@ async def run_batch(request: Request, background_tasks: BackgroundTasks):
             f"[*] Candidate Blueprint: {candidate['name']}",
             "[*] Initiating simulation pipeline on WorldQuant BRAIN..."
         ],
-        "candidate": None
+        "candidate": None,
+        "blueprint": {key: candidate.get(key) for key in ("name", "expr", "region", "universe", "delay", "decay", "neutralization")}
     }
 
     background_tasks.add_task(run_batch_simulation_task, task_id, candidate, sess)
-    return {"task_id": task_id, "status": "QUEUED"}
+    return {"task_id": task_id, "status": "QUEUED", "blueprint": SIMULATION_TASKS[task_id]["blueprint"]}
 
 class SubmitConfirmRequest(BaseModel):
     alpha_id: str
@@ -870,44 +940,19 @@ class SimulationRequest(BaseModel):
     universe: str = "TOP3000"
     delay: int = 1
     decay: int = 22
-    neutralization: str = "NONE"
+    neutralization: str = "SUBINDUSTRY"
+    truncation: float = Field(default=0.08, ge=0.01, le=0.15)
+    pasteurization: str = "ON"
+    nanHandling: str = "OFF"
 
-def run_simulation_task(task_id: str, req: SimulationRequest, sess: Optional[Dict[str, Any]] = None):
+def run_simulation_task(task_id: str, req: SimulationRequest, sess: Optional[Dict[str, Any]]):
     SIMULATION_TASKS[task_id]["status"] = "SIMULATING"
     SIMULATION_TASKS[task_id]["logs"].append("[*] Authenticating and compiling FastExpr with WorldQuant BRAIN...")
     try:
         cfg = PipelineConfig()
-        client = (sess.get("client") if sess else None) or BrainClient(cfg)
+        client = sess.get("client") if sess and sess.get("client") else BrainClient(cfg)
         db = AlphaDatabase(DB_PATH)
-
-        spec = {
-            "type": "REGULAR",
-            "settings": {
-                "instrumentType": "EQUITY",
-                "region": req.region,
-                "universe": req.universe,
-                "delay": req.delay,
-                "decay": req.decay,
-                "neutralization": req.neutralization,
-                "truncation": 0.08,
-                "pasteurization": "ON",
-                "unitHandling": "VERIFY",
-                "nanHandling": "OFF",
-                "language": "FASTEXPR",
-                "visualization": False
-            },
-            "regular": req.expr
-        }
-
-        cand = {
-            "name": req.name,
-            "expr": req.expr,
-            "region": req.region,
-            "universe": req.universe,
-            "delay": req.delay,
-            "decay": req.decay,
-            "neutralization": req.neutralization
-        }
+        cand = req.model_dump()
         res = client.simulate_candidate(cand)
         if not res or "id" not in res:
             SIMULATION_TASKS[task_id]["status"] = "FAILED"
@@ -920,8 +965,21 @@ def run_simulation_task(task_id: str, req: SimulationRequest, sess: Optional[Dic
         SIMULATION_TASKS[task_id]["status"] = "AUDITING"
         SIMULATION_TASKS[task_id]["logs"].append("[*] Running full platform checks and self-correlation matrix...")
 
-        evaluator = AlphaEvaluator(client=client, config=cfg, db=db)
-        evaluator.evaluate_alpha(alpha_id, req.name)
+        evaluator = AlphaEvaluator(client=client, config=client.config, db=db)
+        eval_res = evaluator.evaluate_alpha(res, name=req.name)
+
+        SIMULATION_TASKS[task_id]["candidate"] = {
+            "id": eval_res.id,
+            "sharpe": eval_res.sharpe,
+            "fitness": eval_res.fitness,
+            "returns_pct": round((eval_res.returns or 0.0) * 100, 2),
+            "turnover_pct": round((eval_res.turnover or 0.0) * 100, 2),
+            "margin_bps": round((eval_res.margin or 0.0) * 10000, 2),
+            "drawdown_pct": round((eval_res.drawdown or 0.0) * 100, 2),
+            "max_self_correlation": eval_res.max_self_correlation,
+            "is_submittable": bool(eval_res.is_submittable),
+            "fail_reasons": eval_res.fail_reasons,
+        }
 
         SIMULATION_TASKS[task_id]["status"] = "COMPLETE"
         SIMULATION_TASKS[task_id]["logs"].append("[✓] Audit complete! Saved to database.")
@@ -931,14 +989,14 @@ def run_simulation_task(task_id: str, req: SimulationRequest, sess: Optional[Dic
 
 @app.post("/api/simulate")
 async def dispatch_simulation(req: SimulationRequest, background_tasks: BackgroundTasks, request: Request):
-    sess = get_current_session(request)
     task_id = str(uuid.uuid4())
     SIMULATION_TASKS[task_id] = {
         "status": "QUEUED",
         "logs": [f"[*] Task queued for candidate: {req.name}"],
-        "alpha_id": None
+        "alpha_id": None,
+        "candidate": None,
     }
-    background_tasks.add_task(run_simulation_task, task_id, req, sess)
+    background_tasks.add_task(run_simulation_task, task_id, req, get_current_session(request))
     return {"task_id": task_id, "status": "QUEUED"}
 
 @app.get("/api/simulate/status/{task_id}")
@@ -1078,4 +1136,4 @@ if __name__ == "__main__":
     import uvicorn
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("web.server:app", host=host, port=port, reload=False)
+    uvicorn.run("web.server:app", host=host, port=port, reload=True)

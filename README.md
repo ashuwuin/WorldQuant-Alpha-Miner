@@ -7,9 +7,9 @@
 [![AI Engine: Google Gemini](https://img.shields.io/badge/AI%20Engine-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 [![Local AI: Ollama](https://img.shields.io/badge/Local%20AI-Ollama%20(DeepSeek--R1)-black.svg)](https://ollama.ai/)
 
-An institutional-grade algorithmic quantitative research studio, simulation runner, and execution pipeline built for **WorldQuant BRAIN**. 
+Local alpha research and simulation for **WorldQuant BRAIN**.
 
-Designed to automate the full quantitative alpha discovery lifecycle: from multi-factor hypothesis formulation and cloud simulation to platform hurdle auditing, real-time portfolio self-correlation defense, and interactive web visualization.
+Forked from [ashuwuin/WorldQuant-Alpha-Miner](https://github.com/ashuwuin/WorldQuant-Alpha-Miner). UI improvements by Ashwin Anand.
 
 ---
 
@@ -83,8 +83,8 @@ WorldQuant BRAIN permanently rejects any submitted alpha whose correlation with 
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Ashwin-anand-dot/brain-alpha-github.git
-cd brain-alpha-github
+git clone https://github.com/Akshat-xe/WorldQuant-Alpha-Miner.git
+cd WorldQuant-Alpha-Miner
 ```
 
 ### 2. Install Dependencies
@@ -167,7 +167,7 @@ To pass institutional submission checks on WorldQuant BRAIN, an alpha must stric
 ## 📂 Project Structure
 
 ```
-brain-alpha-github/
+WorldQuant-Alpha-Miner/
 ├── .env.example              # Documented environment variables blueprint
 ├── .gitignore                # Production exclusions (protects secrets & private alphas)
 ├── Dockerfile                # Container deployment definition

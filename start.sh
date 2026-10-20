@@ -25,6 +25,15 @@ elif [ -d "$DIR/.venv" ]; then
     source "$DIR/.venv/bin/activate"
 fi
 
+if [ ! -f "$DIR/web/static/ui/app.js" ] || [ ! -f "$DIR/web/static/ui/app.css" ]; then
+    if ! command -v npm >/dev/null 2>&1; then
+        echo "[!] Frontend bundle missing and npm is unavailable. Install Node.js, then run: cd frontend && npm ci && npm run build" >&2
+        exit 1
+    fi
+    echo "[*] Building the local interface..."
+    (cd "$DIR/frontend" && npm ci && npm run build)
+fi
+
 echo "=========================================================="
 echo "⚡ Starting Quantum Alpha Portal"
 echo "🌐 URL: http://$HOST:$PORT"
