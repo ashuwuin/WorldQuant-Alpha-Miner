@@ -24,6 +24,7 @@ export function CustomSelect({
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const active =
     options.find((opt) => String(opt.value) === String(value)) || options[0];
@@ -49,6 +50,16 @@ export function CustomSelect({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !menuRef.current) return;
+    const selectedEl = menuRef.current.querySelector<HTMLElement>(
+      ".custom-select-option.selected",
+    );
+    if (selectedEl) {
+      selectedEl.scrollIntoView({ block: "nearest" });
+    }
+  }, [open]);
+
   return (
     <div
       ref={wrapRef}
@@ -66,7 +77,14 @@ export function CustomSelect({
       </button>
 
       {open && (
-        <div className="custom-select-menu" role="listbox">
+        <div
+          ref={menuRef}
+          className="custom-select-menu"
+          role="listbox"
+          data-lenis-prevent="true"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
           {options.map((opt) => {
             const isSelected = String(opt.value) === String(value);
             return (

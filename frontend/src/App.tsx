@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ComponentType } from "react";
+import Lenis from "lenis";
 import {
   Activity,
   ArrowDownToLine,
   ArrowRight,
-  Bell,
+  Award,
   Check,
   ChevronDown,
   Compass,
@@ -26,32 +27,25 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
-  Terminal,
+  UserCheck,
   Wand2,
   X,
 } from "lucide-react";
 import AnimatedList from "./components/AnimatedList";
-import AnimatedContent from "./components/AnimatedContent";
 import { AlphaLogo } from "./components/AlphaLogo";
 import TechText from "./components/TechText";
 import TargetCursor from "./components/TargetCursor";
 import GradientASCII from "./components/GradientASCII";
 import FuzzyText from "./components/FuzzyText";
-import MagicBento from "./components/MagicBento";
-import Magnet from "./components/Magnet";
-import CountUp from "./components/CountUp";
 import { LoginModal } from "./components/LoginModal";
 import { CustomSelect } from "./components/CustomSelect";
+import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 
 const ActivityList = AnimatedList as ComponentType<any>;
-const Reveal = AnimatedContent as ComponentType<any>;
 const TechWordmark = TechText as ComponentType<any>;
 const Cursor = TargetCursor as ComponentType<any>;
 const AsciiCanvas = GradientASCII as ComponentType<any>;
 const GlitchTitle = FuzzyText as ComponentType<any>;
-const Bento = MagicBento as ComponentType<any>;
-const Magnetic = Magnet as ComponentType<any>;
-const AnimatedNumber = CountUp as ComponentType<any>;
 
 type Page =
   | "overview"
@@ -60,6 +54,7 @@ type Page =
   | "catalog"
   | "settings"
   | "terms"
+  | "personal"
   | "notfound";
 
 type InspectorSection = "inspector" | "checks" | "events" | null;
@@ -77,6 +72,10 @@ type Alpha = {
   max_self_correlation?: number;
   drawdown_pct?: number;
   decay?: number;
+  region?: string;
+  universe?: string;
+  delay?: number;
+  neutralization?: string;
   checks_summary?: string;
   is_submittable?: number | boolean;
   submission_status?: string;
@@ -112,6 +111,46 @@ type Field = {
 };
 
 type Dataset = { id: string; name: string; fields_count: number };
+
+type ProfileShowcase = {
+  authenticated: boolean;
+  user: {
+    id?: string;
+    fullName?: string;
+    email?: string;
+    level?: string;
+  };
+  platform_url: string;
+  metrics: {
+    total_created: number;
+    submitted_count: number;
+    hurdle_passed_count: number;
+    orthogonal_count: number;
+    corr_checked_count: number;
+    peak_sharpe: number;
+    peak_fitness: number;
+    avg_sharpe: number;
+    avg_fitness: number;
+    pass_rate_pct: number;
+  };
+  tier_distribution: Record<string, number>;
+  submitted_alphas: Alpha[];
+  orthogonal_alphas: Alpha[];
+  milestones: {
+    id: string;
+    title: string;
+    description: string;
+    metric: string;
+    unlocked: boolean;
+  }[];
+};
+
+type ToastState = {
+  title: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+} | null;
 
 const NUMBER = new Intl.NumberFormat("en-US");
 const fmt = (value?: number | null, digits = 2) =>
@@ -184,6 +223,13 @@ const NAV_ITEMS: {
     hint: "Governance & creators",
     icon: ShieldCheck,
     index: "06",
+  },
+  {
+    page: "personal",
+    label: "Personal Dashboard",
+    hint: "Rank & BRAIN portfolio",
+    icon: Award,
+    index: "07",
   },
 ];
 
@@ -306,6 +352,16 @@ const tierClass = (tier?: string) => {
   return "tier-default";
 };
 
+/**
+ * Self-Correlation Color Rule:
+ * - Below 0.58: Green (`corr-pass`)
+ * - Near 0.70 (0.58 to 0.69) or >= 0.70: Red (`corr-high`)
+ */
+const corrColorClass = (corr?: number | null) => {
+  if (corr === undefined || corr === null) return "corr-pass";
+  return corr < 0.58 ? "corr-pass" : "corr-high";
+};
+
 const hurdleBars = (alpha: Alpha) => {
   const clampPct = (v: number) => Math.max(8, Math.min(100, Math.round(v)));
   const sharpe = alpha.sharpe ?? 0;
@@ -339,7 +395,7 @@ const hurdleBars = (alpha: Alpha) => {
       target: "< 0.70",
       val: corr !== undefined && corr !== null ? fmt(corr) : "< 0.70",
       pct: clampPct((1 - (corr ?? 0.22)) * 100),
-      pass: corr === undefined || corr === null || corr < 0.7,
+      pass: corr === undefined || corr === null || corr < 0.58,
     },
   ];
 };
@@ -363,24 +419,24 @@ function MetricCard({
   tone?: "emerald" | "amber" | "ink" | "gold";
   onClick?: () => void;
 }) {
+  const displayValue =
+    numeric !== undefined ? numeric.toFixed(decimals) : value;
+
   return (
     <article
-      className={`metric-card tone-${tone}`}
+      className={`metric-card tone-${tone} ${onClick ? "is-clickable" : ""}`}
       onClick={onClick}
-      style={onClick ? { cursor: "pointer" } : undefined}
     >
       <div className="metric-top">
-        <span>{label}</span>
-        <span className="metric-tag">{sub}</span>
+        <span className="metric-label" title={label}>
+          {label}
+        </span>
+        <span className="metric-tag" title={sub}>
+          {sub}
+        </span>
       </div>
       <div className="metric-middle">
-        <strong>
-          {numeric === undefined ? (
-            value
-          ) : (
-            <AnimatedNumber to={numeric} decimals={decimals} />
-          )}
-        </strong>
+        <strong>{displayValue}</strong>
       </div>
       <div className="metric-bottom">
         <span>{guide}</span>
@@ -394,23 +450,72 @@ function ButtonBase({
   onClick,
   className = "",
   disabled = false,
+  busy = false,
+  busyLabel,
+  done = false,
   type = "button",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   className?: string;
   disabled?: boolean;
+  busy?: boolean;
+  busyLabel?: string;
+  done?: boolean;
   type?: "button" | "submit";
 }) {
   return (
     <button
       type={type}
-      className={`button ${className}`.trim()}
+      className={`button ${busy ? "is-busy" : ""} ${done ? "is-done" : ""} ${className}`.trim()}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || busy}
     >
-      {children}
+      {busy ? (
+        <span>{busyLabel || "Working…"}</span>
+      ) : done ? (
+        <span className="button-done-state">
+          <Check size={14} />
+          <span>Completed</span>
+        </span>
+      ) : (
+        children
+      )}
     </button>
+  );
+}
+
+function AuthGateCard({
+  title,
+  description,
+  buttonLabel = "Sign In to Continue",
+  onSignIn,
+}: {
+  title: string;
+  description: string;
+  buttonLabel?: string;
+  onSignIn: () => void;
+}) {
+  return (
+    <section className="auth-gate-card glass-soft page-enter">
+      <div className="auth-gate-inner">
+        <div className="auth-gate-icon">
+          <LockKeyhole size={24} />
+        </div>
+        <span className="eyebrow">AUTHENTICATION REQUIRED</span>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        <button
+          type="button"
+          className="button primary auth-gate-btn"
+          onClick={onSignIn}
+        >
+          <LockKeyhole size={15} />
+          <span>{buttonLabel}</span>
+          <ArrowRight size={15} />
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -421,13 +526,15 @@ export default function App() {
       ? "factory"
       : pathname === "/terms"
         ? "terms"
-        : pathname === "/engine-select"
-          ? "settings"
-          : pathname === "/" ||
-              pathname === "/dashboard" ||
-              pathname === "/login"
-            ? "overview"
-            : "notfound";
+        : pathname === "/personal"
+          ? "personal"
+          : pathname === "/engine-select"
+            ? "settings"
+            : pathname === "/" ||
+                pathname === "/dashboard" ||
+                pathname === "/login"
+              ? "overview"
+              : "notfound";
 
   const [splashVisible, setSplashVisible] = useState(true);
   const [splashFade, setSplashFade] = useState(false);
@@ -439,23 +546,28 @@ export default function App() {
   const [selected, setSelected] = useState<Alpha | null>(null);
   const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<{
+    id?: string;
     fullName?: string;
+    email?: string;
     level?: string;
   } | null>(null);
   const [summary, setSummary] = useState<Record<string, unknown>>({});
+  const [showcase, setShowcase] = useState<ProfileShowcase | null>(null);
   const [worker, setWorker] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState("");
-  const [notice, setNotice] = useState("");
+  const [doneAction, setDoneAction] = useState("");
+  const [toast, setToast] = useState<ToastState>(null);
+  const [loginError, setLoginError] = useState("");
   const [activity, setActivity] = useState<
     { id: string; title: string; description: string; meta: string }[]
   >([]);
   const [palette, setPalette] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [paletteFields, setPaletteFields] = useState<Field[]>([]);
+  const [paletteLoading, setPaletteLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [vaultFilter, setVaultFilter] = useState("all");
-  const [vaultShown, setVaultShown] = useState(90);
-  const [timeframe, setTimeframe] = useState<"today" | "all">("all");
+  const [vaultTransitioning, setVaultTransitioning] = useState(false);
   const [expression, setExpression] = useState(starterExpression);
   const [alphaName, setAlphaName] = useState("Emerald Signal 01");
   const [region, setRegion] = useState("USA");
@@ -491,10 +603,24 @@ export default function App() {
   const [comparison, setComparison] = useState<Alpha[]>([]);
 
   const mainScroll = useRef<HTMLDivElement>(null);
+  const mainContent = useRef<HTMLDivElement>(null);
+  const lenisRef = useRef<Lenis | null>(null);
   const scopeWrapRef = useRef<HTMLDivElement>(null);
   const seededActivity = useRef(false);
 
   const CATALOG_PAGE_SIZE = 10;
+
+  const notify = useCallback(
+    (
+      title: string,
+      message: string,
+      actionLabel?: string,
+      onAction?: () => void,
+    ) => {
+      setToast({ title, message, actionLabel, onAction });
+    },
+    [],
+  );
 
   const addActivity = useCallback(
     (title: string, description: string, meta = "JUST NOW") =>
@@ -507,12 +633,56 @@ export default function App() {
     [],
   );
 
-  // Auto-dismiss Top-Right ("Northeast") Notification Toast after 4.5s
+  // Smooth Momentum Scrolling across #workspace via Lenis
   useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(""), 4500);
+    const wrapper = mainScroll.current;
+    const content = mainContent.current;
+    if (!wrapper || !content) return;
+
+    const lenis = new Lenis({
+      wrapper,
+      content,
+      lerp: 0.13,
+      smoothWheel: true,
+      wheelMultiplier: 1.0,
+    });
+    lenisRef.current = lenis;
+
+    let rafId = 0;
+    const raf = (time: number) => {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    };
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+      lenisRef.current = null;
+    };
+  }, []);
+
+  // Resize Lenis when page or filter changes
+  useEffect(() => {
+    lenisRef.current?.resize();
+  }, [page, vaultFilter, vaultView, alphas.length, authenticated]);
+
+  // Deterministic non-blocking boot splash timer with AsciiCanvas + TechWordmark
+  useEffect(() => {
+    const fadeTimer = window.setTimeout(() => setSplashFade(true), 850);
+    const hideTimer = window.setTimeout(() => setSplashVisible(false), 1200);
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(hideTimer);
+    };
+  }, []);
+
+  // Auto-dismiss Bottom-Right Theme Toast after 4s
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
-  }, [notice]);
+  }, [toast]);
 
   // Close Top-Bar Scope Popover on outside click
   useEffect(() => {
@@ -529,9 +699,38 @@ export default function App() {
     return () => window.removeEventListener("mousedown", onDown);
   }, [selectorOpen]);
 
+  /**
+   * Privacy-First Refresh:
+   * Checks `/api/auth/me` FIRST. If not authenticated, clears all personal data
+   * (`alphas`, `stats`, `selected`, `showcase`, `activity`) so ZERO personal data
+   * is ever exposed before signing in!
+   */
   const refresh = useCallback(async () => {
     try {
-      const [s, a, w, m] = await Promise.all([
+      const me = await api<{
+        authenticated: boolean;
+        user?: {
+          id?: string;
+          fullName?: string;
+          email?: string;
+          level?: string;
+        };
+      }>("/api/auth/me").catch(() => ({ authenticated: false }));
+
+      setAuthenticated(me.authenticated);
+      setUser(me.authenticated && "user" in me ? me.user || null : null);
+
+      if (!me.authenticated) {
+        setStats({});
+        setAlphas([]);
+        setSelected(null);
+        setShowcase(null);
+        setActivity([]);
+        seededActivity.current = false;
+        return;
+      }
+
+      const [s, a, w, p, sum] = await Promise.all([
         api<Stats>("/api/stats"),
         api<{ alphas: Alpha[] }>(
           "/api/alphas?limit=1000&sort_by=fitness&order=desc",
@@ -539,16 +738,16 @@ export default function App() {
         api<Record<string, unknown>>("/api/correlation-worker/status").catch(
           () => ({}),
         ),
-        api<{
-          authenticated: boolean;
-          user?: { fullName?: string; level?: string };
-        }>("/api/auth/me").catch(() => ({ authenticated: false })),
+        api<ProfileShowcase>("/api/profile/showcase").catch(() => null),
+        api<Record<string, unknown>>("/api/user/dashboard-summary").catch(
+          () => ({}),
+        ),
       ]);
       setStats(s);
       setAlphas(a.alphas || []);
       setWorker(w);
-      setAuthenticated(m.authenticated);
-      setUser("user" in m ? m.user || null : null);
+      setSummary(sum);
+      if (p) setShowcase(p);
       setSelected((previous) =>
         previous
           ? {
@@ -574,23 +773,11 @@ export default function App() {
           .then(setSelected)
           .catch(() => {});
       }
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "Unable to load local research data",
-      );
-    } finally {
-      setSplashFade(true);
-      window.setTimeout(() => setSplashVisible(false), 380);
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
     void refresh();
-    void api<Record<string, unknown>>("/api/user/dashboard-summary")
-      .then(setSummary)
-      .catch(() => {});
     const timer = window.setInterval(() => void refresh(), 15000);
     return () => clearInterval(timer);
   }, [refresh]);
@@ -605,9 +792,11 @@ export default function App() {
             ? "factory"
             : path === "/terms"
               ? "terms"
-              : path === "/engine-select"
-                ? "settings"
-                : "notfound",
+              : path === "/personal"
+                ? "personal"
+                : path === "/engine-select"
+                  ? "settings"
+                  : "notfound",
       );
     };
     window.addEventListener("popstate", syncPath);
@@ -617,36 +806,42 @@ export default function App() {
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setSelectorOpen(false);
-        setPalette((x) => !x);
-      }
-      if (event.key === "Escape") {
-        setPalette(false);
-        setSelectorOpen(false);
+        if (!palette) {
+          event.preventDefault();
+          setSelectorOpen(false);
+          setPalette(true);
+        }
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, []);
+  }, [palette]);
 
   useEffect(() => {
-    if (!palette || paletteQuery.trim().length < 2) {
+    if (!palette || !authenticated) {
       setPaletteFields([]);
+      setPaletteLoading(false);
       return;
     }
+    if (paletteQuery.trim().length < 2) {
+      setPaletteFields(fields.slice(0, 5));
+      setPaletteLoading(false);
+      return;
+    }
+    setPaletteLoading(true);
     const timer = window.setTimeout(() => {
       void api<{ fields: Field[] }>(
-        `/api/data-fields?search=${encodeURIComponent(paletteQuery.trim())}&limit=6`,
+        `/api/data-fields?search=${encodeURIComponent(paletteQuery.trim())}&limit=8`,
       )
         .then((res) => setPaletteFields(res.fields || []))
-        .catch(() => setPaletteFields([]));
-    }, 150);
+        .catch(() => setPaletteFields([]))
+        .finally(() => setPaletteLoading(false));
+    }, 120);
     return () => clearTimeout(timer);
-  }, [palette, paletteQuery]);
+  }, [palette, paletteQuery, fields, authenticated]);
 
   useEffect(() => {
-    if (page !== "catalog") return;
+    if (!authenticated) return;
     const params = new URLSearchParams({
       page: String(fieldPage),
       limit: String(CATALOG_PAGE_SIZE),
@@ -662,18 +857,18 @@ export default function App() {
             setFields(x.fields);
             setFieldTotal(x.total);
           })
-          .catch((e) => setNotice(String(e))),
-      140,
+          .catch((e) => notify("CATALOG ERROR", String(e))),
+      120,
     );
     return () => clearTimeout(t);
-  }, [page, fieldSearch, fieldDataset, fieldPage]);
+  }, [fieldSearch, fieldDataset, fieldPage, authenticated, notify]);
 
   useEffect(() => {
-    if (page !== "catalog") return;
+    if (!authenticated) return;
     void api<{ datasets: Dataset[] }>("/api/datasets")
       .then((x) => setDatasets(x.datasets))
       .catch(() => {});
-  }, [page]);
+  }, [authenticated]);
 
   useEffect(() => {
     if (!taskId) return;
@@ -694,18 +889,26 @@ export default function App() {
             t.candidate?.id || t.alpha_id || t.logs?.at(-1) || t.status,
           );
           void refresh();
-          if (t.candidate?.id)
-            void api<Alpha>(`/api/alpha/${encodeURIComponent(t.candidate.id)}`)
+          if (t.candidate?.id) {
+            const cId = t.candidate.id;
+            void api<Alpha>(`/api/alpha/${encodeURIComponent(cId)}`)
               .then((detail) => {
                 setSelected(detail);
                 setInspectorSection("inspector");
+                notify(
+                  "SIMULATION COMPLETE",
+                  `Alpha ${cId} audited · Sharpe ${fmt(detail.sharpe)} · Fitness ${fmt(detail.fitness)}`,
+                  "Inspect in Vault →",
+                  () => switchPage("vault"),
+                );
               })
               .catch(() => {});
+          }
         }
       } catch (e) {
         if (alive) {
           setTaskId("");
-          setNotice(String(e));
+          notify("SIMULATION ERROR", String(e));
         }
       }
     };
@@ -715,58 +918,84 @@ export default function App() {
       alive = false;
       clearInterval(timer);
     };
-  }, [taskId, addActivity, refresh]);
+  }, [taskId, addActivity, refresh, notify]);
+
+  const switchPage = useCallback((next: Page) => {
+    setPage(next);
+    window.history.pushState(
+      {},
+      "",
+      next === "factory"
+        ? "/studio"
+        : next === "terms"
+          ? "/terms"
+          : next === "personal"
+            ? "/personal"
+            : "/",
+    );
+    lenisRef.current?.scrollTo(0, { immediate: true });
+    mainScroll.current?.scrollTo({ top: 0 });
+    setPalette(false);
+    setSelectorOpen(false);
+  }, []);
+
+  const triggerVaultTransition = useCallback((callback: () => void) => {
+    setVaultTransitioning(true);
+    callback();
+    window.setTimeout(() => {
+      setVaultTransitioning(false);
+    }, 220);
+  }, []);
 
   const action = async (
     name: string,
     fn: () => Promise<unknown>,
-    success: string,
+    toastTitle: string,
+    toastMessage: string,
+    actionLabel?: string,
+    onAction?: () => void,
   ) => {
+    if (busy) return;
     setBusy(name);
+    setDoneAction("");
     try {
       await fn();
-      setNotice(success);
-      addActivity(success, name.toUpperCase());
+      setDoneAction(name);
+      window.setTimeout(() => setDoneAction(""), 950);
+      notify(toastTitle, toastMessage, actionLabel, onAction);
+      addActivity(toastTitle, toastMessage);
       void refresh();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      notify("ACTION FAILED", msg);
     } finally {
       setBusy("");
     }
   };
 
-  const switchPage = (next: Page) => {
-    setPage(next);
-    window.history.pushState(
-      {},
-      "",
-      next === "factory" ? "/studio" : next === "terms" ? "/terms" : "/",
-    );
-    mainScroll.current?.scrollTo({ top: 0, behavior: "smooth" });
-    setPalette(false);
-    setSelectorOpen(false);
-  };
-
-  const openAlpha = async (a: Alpha) => {
+  const openAlpha = useCallback(async (a: Alpha) => {
     setSelected(a);
     setInspectorSection("inspector");
     try {
       setSelected(await api<Alpha>(`/api/alpha/${encodeURIComponent(a.id)}`));
     } catch {}
-  };
+  }, []);
 
   const submit = (a: Alpha) => {
     if (!a.is_submittable || a.submission_status === "SUBMITTED") return;
     if (
       !window.confirm(
-        `Submit alpha ${a.id} to WorldQuant BRAIN? This sends the live submission.`,
+        `Submit alpha ${a.id} to WorldQuant BRAIN? This dispatches the live portfolio submission.`,
       )
     )
       return;
     void action(
       "submit",
       () => post("/api/engine/confirm-submit", { alpha_id: a.id }),
-      `Submitted ${a.id} to WorldQuant BRAIN`,
+      "SUBMITTED TO BRAIN",
+      `Alpha ${a.id} (Sharpe ${fmt(a.sharpe)}, Fit ${fmt(a.fitness)}) is now active in your portfolio.`,
+      "Open Personal Dashboard →",
+      () => switchPage("personal"),
     );
   };
 
@@ -784,27 +1013,24 @@ export default function App() {
         if (vaultFilter === "hurdles" && !passesMetricHurdles(a)) return false;
         if (vaultFilter === "draft" && a.submission_status === "SUBMITTED")
           return false;
-        if (
-          timeframe === "today" &&
-          a.evaluated_at?.slice(0, 10) !== new Date().toISOString().slice(0, 10)
-        )
-          return false;
-        return `${a.id} ${a.expression || ""}`
+        return `${a.id} ${a.tier || ""} ${a.region || ""}`
           .toLowerCase()
           .includes(search.toLowerCase());
       }),
-    [alphas, vaultFilter, search, timeframe],
+    [alphas, vaultFilter, search],
   );
 
   const onSimulate = (event: FormEvent) => {
     event.preventDefault();
     if (!validateExpression(expression).startsWith("Syntax")) {
-      setNotice("Please fix parenthesis syntax in the FastExpr editor first.");
+      notify(
+        "SYNTAX CHECK",
+        "Please balance parentheses in the FastExpr editor before simulating.",
+      );
       return;
     }
     if (!authenticated) {
       setLoginOpen(true);
-      setNotice("Sign in with your WorldQuant BRAIN credentials to simulate.");
       return;
     }
     void action(
@@ -828,27 +1054,40 @@ export default function App() {
           logs: ["[*] Task queued for WorldQuant BRAIN simulation..."],
         });
       },
-      "Simulation dispatched to WorldQuant BRAIN",
+      "SIMULATION DISPATCHED",
+      `Running '${alphaName}' on ${region} · ${universe} · D${delay} (Decay ${decay}d).`,
+      "View Live Console →",
+      () => switchPage("factory"),
     );
   };
 
-  const onLogin = (event: FormEvent) => {
+  const onLogin = async (event: FormEvent) => {
     event.preventDefault();
-    void action(
-      "login",
-      async () => {
-        await post("/api/auth/login", { email, password });
-        setPassword("");
-        const me = await api<{
-          authenticated: boolean;
-          user: { fullName?: string; level?: string };
-        }>("/api/auth/me");
-        setAuthenticated(me.authenticated);
-        setUser(me.user);
-        setLoginOpen(false);
-      },
-      "WorldQuant BRAIN session connected",
-    );
+    setLoginError("");
+    setBusy("login");
+    try {
+      await post("/api/auth/login", { email, password });
+      setPassword("");
+      const me = await api<{
+        authenticated: boolean;
+        user: { id?: string; fullName?: string; email?: string; level?: string };
+      }>("/api/auth/me");
+      setAuthenticated(me.authenticated);
+      setUser(me.user);
+      setLoginOpen(false);
+      await refresh();
+      notify(
+        "BRAIN SESSION CONNECTED",
+        `Signed in as ${me.user?.fullName || email} (${me.user?.level || "BRONZE"} LEVEL).`,
+        "Open Personal Dashboard →",
+        () => switchPage("personal"),
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setLoginError(msg);
+    } finally {
+      setBusy("");
+    }
   };
 
   const onSettings = (event: FormEvent) => {
@@ -863,11 +1102,18 @@ export default function App() {
           ollama_endpoint: ollamaEndpoint,
           ollama_model: ollamaModel,
         }),
-      "Synthesis engine preferences saved",
+      "ENGINE CONFIGURED",
+      `Active synthesis engine set to ${engine.toUpperCase()}.`,
+      "Open Alpha Studio →",
+      () => switchPage("factory"),
     );
   };
 
-  const generatePreview = () =>
+  const generatePreview = () => {
+    if (!authenticated) {
+      setLoginOpen(true);
+      return;
+    }
     void action(
       "preview",
       async () => {
@@ -889,13 +1135,16 @@ export default function App() {
           setNeutralization(candidate.neutralization);
         switchPage("factory");
       },
-      "Formula loaded into Alpha Studio editor",
+      "BLUEPRINT SYNTHESIZED",
+      `Loaded '${ARCHETYPE_OPTIONS[archetype]?.title || "Factor Blueprint"}' into Alpha Studio.`,
+      "Simulate Now →",
+      () => switchPage("factory"),
     );
+  };
 
   const runBatch = () => {
     if (!authenticated) {
       setLoginOpen(true);
-      setNotice("Sign in to your WorldQuant BRAIN account to auto-mine.");
       return;
     }
     void action(
@@ -919,7 +1168,10 @@ export default function App() {
         if (r.blueprint?.name) setAlphaName(r.blueprint.name);
         switchPage("factory");
       },
-      "Auto-mine simulation dispatched",
+      "AUTO-MINER DISPATCHED",
+      `Synthesizing and simulating '${ARCHETYPE_OPTIONS[archetype]?.title}' on WorldQuant BRAIN.`,
+      "Watch Live Logs →",
+      () => switchPage("factory"),
     );
   };
 
@@ -933,7 +1185,8 @@ export default function App() {
         );
         if (!result.valid) throw new Error("API key validation failed");
       },
-      "Cloud AI API key verified",
+      "API KEY VERIFIED",
+      `${cloudProvider.toUpperCase()} cloud synthesis key verified and active.`,
     );
 
   const discoverModels = () =>
@@ -946,9 +1199,9 @@ export default function App() {
         if (!result.available)
           throw new Error("No local Ollama models detected at this endpoint");
         setOllamaModel(result.models[0]);
-        setNotice(`${result.models.length} local Ollama models found`);
       },
-      "Local Ollama models discovered",
+      "OLLAMA CONNECTED",
+      `Discovered local model '${ollamaModel}' at ${ollamaEndpoint}.`,
     );
 
   const checkCorrelation = (a: Alpha) => {
@@ -957,26 +1210,43 @@ export default function App() {
       `/api/correlation-check/${encodeURIComponent(a.id)}`,
     )
       .then((result) => {
-        const message = `${a.id}: ${result.passed ? "Passed (< 0.70)" : "High Correlation"} · Max self-corr ${fmt(result.max_self_correlation)}`;
-        setNotice(message);
+        const message = `${a.id}: ${result.passed ? "Orthogonal (< 0.70)" : "High Correlation"} · Self-corr ${fmt(result.max_self_correlation)}`;
+        notify("CORRELATION VERIFIED", message, "Clone to Studio →", () =>
+          cloneToFactory(a),
+        );
         addActivity("Self-correlation verified", message);
         void openAlpha(a);
       })
-      .catch((error) => setNotice(String(error)))
+      .catch((error) => notify("CORRELATION ERROR", String(error)))
       .finally(() => setBusy(""));
   };
 
-  const cloneToFactory = (a: Alpha) => {
-    setExpression(a.expression || "");
-    setAlphaName(`Variant_${a.id}`);
-    switchPage("factory");
-    setNotice(`Loaded ${a.id} into Alpha Studio editor.`);
-  };
+  const cloneToFactory = useCallback(
+    async (a: Alpha) => {
+      let expr = a.expression || "";
+      if (!expr) {
+        try {
+          const detail = await api<Alpha>(
+            `/api/alpha/${encodeURIComponent(a.id)}`,
+          );
+          expr = detail.expression || "";
+        } catch {}
+      }
+      setExpression(expr || starterExpression);
+      setAlphaName(`Variant_${a.id}`);
+      switchPage("factory");
+      notify(
+        "CLONED TO STUDIO",
+        `Loaded ${a.id} (${a.tier || "EVALUATED"} · Sharpe ${fmt(a.sharpe)}) into FastExpr editor.`,
+      );
+    },
+    [notify, switchPage],
+  );
 
   const importCandidate = async (file?: File) => {
     if (!file) return;
     if (file.size > 1024 * 1024) {
-      setNotice("Candidate file exceeds 1 MB");
+      notify("FILE LIMIT", "Candidate file exceeds 1 MB.");
       return;
     }
     try {
@@ -1002,9 +1272,15 @@ export default function App() {
         throw new Error("Candidate file needs an expr or expression field");
       setExpression(expr);
       if (typeof data.name === "string") setAlphaName(data.name);
-      setNotice(`${file.name} loaded into Alpha Studio.`);
+      notify(
+        "CANDIDATE IMPORTED",
+        `Loaded formula from '${file.name}' into Alpha Studio.`,
+      );
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : String(error));
+      notify(
+        "IMPORT FAILED",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   };
 
@@ -1014,8 +1290,206 @@ export default function App() {
       `/api/compare?ids=${encodeURIComponent(compareIds.join(","))}`,
     )
       .then((x) => setComparison(x.alphas))
-      .catch((e) => setNotice(String(e)));
+      .catch((e) => notify("COMPARE ERROR", String(e)));
   };
+
+  const paletteItems = useMemo<PaletteItem[]>(() => {
+    const q = paletteQuery.trim().toLowerCase();
+    const list: PaletteItem[] = [];
+
+    for (const nav of NAV_ITEMS) {
+      const text = `${nav.index} ${nav.label} ${nav.hint}`.toLowerCase();
+      if (!q || text.includes(q)) {
+        list.push({
+          id: `page-${nav.page}`,
+          category: "WORKSPACE PAGES",
+          title: `${nav.index} · ${nav.label}`,
+          subtitle: nav.hint,
+          badge: page === nav.page ? "ACTIVE" : "PAGE",
+          primaryLabel: "Open Page",
+          copyText: nav.label,
+          onPrimary: () => switchPage(nav.page),
+        });
+      }
+    }
+
+    if (!authenticated) {
+      list.push({
+        id: "cmd-signin",
+        category: "QUICK COMMANDS",
+        title: "Sign In to WorldQuant BRAIN",
+        subtitle: "Authenticate your session to unlock studio, vault, and dashboard",
+        badge: "AUTH",
+        primaryLabel: "Sign In",
+        copyText: "https://platform.worldquantbrain.com",
+        onPrimary: () => setLoginOpen(true),
+      });
+      return list;
+    }
+
+    const commands: PaletteItem[] = [
+      {
+        id: "cmd-automine",
+        category: "QUICK COMMANDS",
+        title: "Auto-Mine 1 Alpha Candidate Now",
+        subtitle: `Dispatch autonomous simulation on ${region} · ${universe} · D${delay}`,
+        badge: "CLOUD MINER",
+        primaryLabel: "Run Auto-Miner",
+        copyText: expression,
+        onPrimary: runBatch,
+      },
+      {
+        id: "cmd-sync",
+        category: "QUICK COMMANDS",
+        title: "Sync Portfolio with WorldQuant BRAIN",
+        subtitle: "Pull active & unsubmitted alphas from api.worldquantbrain.com",
+        badge: "SYNC",
+        primaryLabel: "Sync Now",
+        copyText: "https://platform.worldquantbrain.com",
+        onPrimary: () =>
+          void action(
+            "sync",
+            () => post("/api/sync-cloud"),
+            "PORTFOLIO SYNCED",
+            "Pulled latest active and unsubmitted alphas from WorldQuant BRAIN.",
+            "View Alpha Vault →",
+            () => switchPage("vault"),
+          ),
+      },
+      {
+        id: "cmd-platform",
+        category: "QUICK COMMANDS",
+        title: "Open Official WorldQuant BRAIN Platform",
+        subtitle: "Launch platform.worldquantbrain.com in a new browser tab",
+        badge: "EXTERNAL",
+        primaryLabel: "Open BRAIN Website",
+        copyText: "https://platform.worldquantbrain.com",
+        onPrimary: () =>
+          window.open(
+            "https://platform.worldquantbrain.com",
+            "_blank",
+            "noopener,noreferrer",
+          ),
+      },
+    ];
+    for (const cmd of commands) {
+      if (!q || `${cmd.title} ${cmd.subtitle}`.toLowerCase().includes(q)) {
+        list.push(cmd);
+      }
+    }
+
+    ARCHETYPE_OPTIONS.forEach((arch, idx) => {
+      if (!q || `${arch.title} ${arch.meta}`.toLowerCase().includes(q)) {
+        list.push({
+          id: `arch-${idx}`,
+          category: "FACTOR BLUEPRINTS",
+          title: arch.title,
+          subtitle: arch.meta,
+          badge: `BLUEPRINT 0${idx + 1}`,
+          primaryLabel: "Open in Studio",
+          copyText: arch.title,
+          onPrimary: () => {
+            setArchetype(idx);
+            switchPage("factory");
+          },
+        });
+      }
+    });
+
+    const matchingAlphas = alphas
+      .filter(
+        (a) =>
+          !q ||
+          `${a.id} ${a.tier || ""} ${statusOf(a)}`.toLowerCase().includes(q),
+      )
+      .slice(0, q ? 12 : 6);
+
+    for (const a of matchingAlphas) {
+      list.push({
+        id: `alpha-${a.id}`,
+        category: "AUDITED ALPHAS",
+        title: `Alpha ${a.id}`,
+        subtitle: `${a.tier || "EVALUATED"} · ${a.region || "USA"} · ${a.universe || "TOP3000"}`,
+        badge: statusOf(a),
+        rightMeta: `SR ${fmt(a.sharpe)} · Fit ${fmt(a.fitness)}`,
+        primaryLabel: "Inspect Alpha",
+        copyText: a.id,
+        studioExpr: a.expression,
+        studioName: `Variant_${a.id}`,
+        onPrimary: () => {
+          void openAlpha(a);
+          switchPage("vault");
+        },
+      });
+    }
+
+    for (const f of paletteFields) {
+      if (
+        !q ||
+        `${f.id} ${f.description || ""} ${f.dataset_id || ""}`
+          .toLowerCase()
+          .includes(q)
+      ) {
+        list.push({
+          id: `field-${f.id}`,
+          category: "BRAIN DATA FIELDS",
+          title: f.id,
+          subtitle: f.description || `Dataset: ${f.dataset_id || "EQUITY"}`,
+          badge: f.dataset_id || "FIELD",
+          rightMeta: f.type || "MATRIX",
+          primaryLabel: "Insert into Studio",
+          copyText: f.id,
+          studioExpr: `${expression}\n${f.id}`,
+          onPrimary: () => {
+            setExpression((prev) => `${prev}\n${f.id}`);
+            switchPage("factory");
+            notify(
+              "DATA FIELD INSERTED",
+              `Appended '${f.id}' (${f.dataset_id || "EQUITY"}) into FastExpr editor.`,
+            );
+          },
+        });
+      }
+    }
+
+    for (const op of OPERATOR_GUIDES) {
+      if (!q || `${op.label} ${op.guide}`.toLowerCase().includes(q)) {
+        list.push({
+          id: `op-${op.snippet}`,
+          category: "FASTEXPR OPERATORS",
+          title: op.label,
+          subtitle: op.guide,
+          badge: "OPERATOR",
+          primaryLabel: "Insert Operator",
+          copyText: op.snippet,
+          studioExpr: `${expression}${op.snippet}`,
+          onPrimary: () => {
+            setExpression((prev) => `${prev}${op.snippet}`);
+            switchPage("factory");
+            notify(
+              "OPERATOR INSERTED",
+              `Appended '${op.label}' to FastExpr editor.`,
+            );
+          },
+        });
+      }
+    }
+
+    return list;
+  }, [
+    paletteQuery,
+    page,
+    region,
+    universe,
+    delay,
+    expression,
+    authenticated,
+    alphas,
+    paletteFields,
+    switchPage,
+    openAlpha,
+    notify,
+  ]);
 
   const pageMeta = {
     overview: {
@@ -1026,12 +1500,12 @@ export default function App() {
     factory: {
       title: "Alpha Studio & Simulation Workbench",
       subtitle:
-        "Configure simulation parameters on the left and compose FastExpr formulas on the right.",
+        "Configure backtest parameters on the left and compose FastExpr formulas on the right.",
     },
     vault: {
       title: "Alpha Vault & Portfolio Registry",
       subtitle:
-        "Browse all 90 audited candidates with Sharpe, Fitness, Turnover, and Self-Correlation.",
+        "Browse audited candidates with Sharpe, Fitness, Turnover, and Self-Correlation.",
     },
     catalog: {
       title: "WorldQuant Data Catalog",
@@ -1039,14 +1513,19 @@ export default function App() {
         "Search 4,367 institutional equity fields across 14 datasets and insert into your formula.",
     },
     settings: {
-      title: "Engine & Consultant Session",
+      title: "Engine & Session Settings",
       subtitle:
         "Configure Algorithmic, Google Gemini, or Local Ollama engines and manage BRAIN credentials.",
     },
     terms: {
-      title: "Consultant Research Protocol",
+      title: "Research Protocol",
       subtitle:
         "Operational governance, local compute sovereignty, and open-source contributors.",
+    },
+    personal: {
+      title: "Personal Dashboard",
+      subtitle:
+        "WorldQuant BRAIN level, verified achievements, quality pyramid, and active portfolio.",
     },
     notfound: {
       title: "Signal Lost · 404",
@@ -1082,21 +1561,29 @@ export default function App() {
         result: (selected.fitness || 0) >= 1.0 ? "PASS" : "FAIL",
       },
       {
-        name: "TURNOVER (1%–70%)",
-        result: "PASS",
+        name: "HIGH_TURNOVER (≤ 70%)",
+        result: (selected.turnover_pct || 0) <= 70 ? "PASS" : "FAIL",
+      },
+      {
+        name: "LOW_TURNOVER (≥ 1%)",
+        result: (selected.turnover_pct || 0) >= 1 ? "PASS" : "FAIL",
       },
       {
         name: "SELF_CORRELATION (< 0.70)",
         result:
-          (selected.max_self_correlation ?? 0.2) < 0.7 ? "PASS" : "FAIL",
+          selected.max_self_correlation === undefined ||
+          selected.max_self_correlation === null ||
+          selected.max_self_correlation < 0.7
+            ? "PASS"
+            : "FAIL",
       },
       {
         name: "CONCENTRATED_WEIGHT",
         result: "PASS",
       },
       {
-        name: "LOW_SUB_UNIVERSE_SHARPE",
-        result: selected.is_submittable ? "PASS" : "PENDING",
+        name: "SUB_UNIVERSE_SHARPE",
+        result: (selected.sharpe || 0) >= 1.25 ? "PASS" : "WARN",
       },
     ];
   }, [selected]);
@@ -1111,20 +1598,59 @@ export default function App() {
     [checksList],
   );
 
+  const decayPct = Math.round((decay / 60) * 100);
+  const truncPct = Math.round(((truncation - 0.01) / 0.14) * 100);
+
   return (
     <div className="app-shell">
-      {/* BOOT SPLASH OVERLAY ON REFRESH */}
+      {/* PREMIUM SPLASH SCREEN WITH HERO SKY/HORIZON ANIMATION (Fixes Screenshot 8) */}
       {splashVisible && (
         <div
           className={`boot-splash ${splashFade ? "fade-out" : ""}`}
           onClick={() => setSplashVisible(false)}
         >
+          <AsciiCanvas
+            className="boot-ascii-bg"
+            colors={["#0A1410", "#133829", "#1F5C43", "#C5A875", "#F2EFE9"]}
+            shape="horizon"
+            characters=" .=+xX0S8#@"
+            cellSize={18}
+            density={0.78}
+            glyphOpacity={0.72}
+            gradientOpacity={0.88}
+            glow={0}
+            flow={0.65}
+            speed={0.95}
+          />
           <div className="boot-splash-inner">
-            <AlphaLogo size={72} />
+            <AlphaLogo size={64} />
             <span className="boot-kicker">
               WORLDQUANT BRAIN · QUANTITATIVE RESEARCH STUDIO
             </span>
-            <strong>WORLDQUANT ALPHA</strong>
+            <div className="boot-wordmark">
+              <TechWordmark
+                text="WORLDQUANT  ALPHA"
+                fontFamily="Space Grotesk"
+                fontWeight={700}
+                fontSize={56}
+                letterSpacing={0.055}
+                align="center"
+                color="#F2EFE9"
+                accentColor="#C5A875"
+                reveal="letter"
+                dashLength={4}
+                dashGap={2}
+                specks={8}
+                selection={false}
+                labels={false}
+                draggable={false}
+                bounce={0.25}
+                sweep
+                intro="metrics"
+                introDuration={0.75}
+                guides={false}
+              />
+            </div>
             <div className="boot-bar">
               <i />
             </div>
@@ -1132,19 +1658,29 @@ export default function App() {
         </div>
       )}
 
-      {/* TOP-RIGHT ("NORTHEAST") DISTINCT COBALT-VIOLET NOTIFICATION TOAST */}
-      {notice && (
-        <aside className="northeast-toast" role="status" aria-live="polite">
-          <div className="toast-icon-badge">
-            <Bell size={16} />
-          </div>
-          <div className="northeast-toast-copy">
-            <strong>SYSTEM TELEMETRY</strong>
-            <span>{notice}</span>
+      {/* BOTTOM-RIGHT THEME-MATCHED BOTANICAL & CHAMPAGNE GOLD TOAST */}
+      {toast && (
+        <aside className="bottom-right-toast" role="status" aria-live="polite">
+          <div className="toast-copy">
+            <strong>{toast.title}</strong>
+            <span>{toast.message}</span>
+            {toast.actionLabel && toast.onAction && (
+              <button
+                type="button"
+                className="toast-next-action"
+                onClick={() => {
+                  toast.onAction?.();
+                  setToast(null);
+                }}
+              >
+                <span>{toast.actionLabel}</span>
+              </button>
+            )}
           </div>
           <button
-            className="northeast-toast-close no-cursor-lock"
-            onClick={() => setNotice("")}
+            type="button"
+            className="toast-close-btn"
+            onClick={() => setToast(null)}
             aria-label="Dismiss notification"
           >
             <X size={14} />
@@ -1152,20 +1688,17 @@ export default function App() {
         </aside>
       )}
 
-      {/* FULL-WIDTH BUTTON LOCKING TARGET CURSOR */}
+      {/* ZERO-LAG TARGET CURSOR */}
       <Cursor
-        spinDuration={0}
-        hoverDuration={0.15}
+        hoverDuration={0.11}
         hideDefaultCursor
         parallaxOn
-        size={26}
-        cornerSize={9}
+        size={22}
+        cornerSize={8}
         thickness={2}
         padding={4}
         matchRadius
         dotSize={4}
-        blendMode="difference"
-        showLabel={false}
         clickEffect
       />
 
@@ -1173,7 +1706,7 @@ export default function App() {
         Skip to workspace
       </a>
 
-      {/* LEFT NAVIGATION DOCK */}
+      {/* LEFT NAVIGATION DOCK (01-07) */}
       <aside className="sidebar glass">
         <div
           className="brand cursor-target"
@@ -1188,7 +1721,7 @@ export default function App() {
 
         <div className="nav-kicker">
           <span>WORKSPACE</span>
-          <span>01–06</span>
+          <span>01–07</span>
         </div>
 
         <nav aria-label="Primary navigation">
@@ -1213,7 +1746,7 @@ export default function App() {
           <button
             className={`consultant-card ${authenticated ? "is-online" : ""}`}
             onClick={() =>
-              authenticated ? switchPage("settings") : setLoginOpen(true)
+              authenticated ? switchPage("personal") : setLoginOpen(true)
             }
           >
             <div className="consultant-row">
@@ -1224,8 +1757,8 @@ export default function App() {
             </div>
             <small>
               {authenticated
-                ? user?.fullName || "Active Consultant Session"
-                : "Click to connect your credentials"}
+                ? `${user?.fullName || "Authenticated"} · ${user?.level || "BRONZE"}`
+                : "Sign in to continue"}
             </small>
           </button>
         </div>
@@ -1253,12 +1786,11 @@ export default function App() {
             }}
           >
             <Search size={15} />
-            <span>Search alphas, 4,367 fields, or commands…</span>
+            <span>Search pages, commands, or fields…</span>
             <kbd>⌘K</kbd>
           </button>
 
           <div className="utility-actions">
-            {/* DIRECTLY ALIGNED SIMULATION SCOPE POPOVER WITH SEGMENTED PILLS */}
             <div className="selector-wrap" ref={scopeWrapRef}>
               <button
                 className="universe-pill"
@@ -1337,7 +1869,13 @@ export default function App() {
 
                   <button
                     className="button primary full"
-                    onClick={() => setSelectorOpen(false)}
+                    onClick={() => {
+                      setSelectorOpen(false);
+                      notify(
+                        "SCOPE UPDATED",
+                        `Backtest scope locked to ${region} · ${universe} · D${delay}.`,
+                      );
+                    }}
                   >
                     Apply Scope ({region} · {universe} · D{delay})
                   </button>
@@ -1347,53 +1885,57 @@ export default function App() {
 
             <ButtonBase
               className="sync-button"
+              busy={busy === "sync"}
+              busyLabel="Syncing…"
+              done={doneAction === "sync"}
               onClick={() =>
                 authenticated
                   ? void action(
                       "sync",
                       () => post("/api/sync-cloud"),
-                      "Synced active & unsubmitted alphas from WorldQuant BRAIN",
+                      "PORTFOLIO SYNCED",
+                      "Synced active & unsubmitted alphas from WorldQuant BRAIN.",
+                      "Open Alpha Vault →",
+                      () => switchPage("vault"),
                     )
                   : setLoginOpen(true)
               }
-              disabled={busy === "sync"}
             >
               <RefreshCw size={14} />
-              <span>{busy === "sync" ? "Syncing…" : "Sync Portfolio"}</span>
+              <span>Sync Portfolio</span>
             </ButtonBase>
 
             <button
               className={`account-pill ${authenticated ? "is-connected" : ""}`}
               onClick={() =>
-                authenticated ? switchPage("settings") : setLoginOpen(true)
+                authenticated ? switchPage("personal") : setLoginOpen(true)
               }
             >
-              <LockKeyhole size={14} />
+              {authenticated ? (
+                <UserCheck size={14} />
+              ) : (
+                <LockKeyhole size={14} />
+              )}
               <span>
-                {authenticated ? user?.fullName || "Connected" : "Sign In"}
+                {authenticated ? user?.fullName || "Signed In" : "Sign In"}
               </span>
             </button>
           </div>
         </header>
 
         <div className="content-grid">
-          {/* MAIN SCROLLABLE WORKSPACE (Native 120fps macOS Scroll) */}
+          {/* SMOOTH LENIS SCROLLABLE WORKSPACE */}
           <div className="workspace-panel glass">
             <main id="workspace" className="workspace" ref={mainScroll}>
               <div
+                ref={mainContent}
                 className={`workspace-inner ${page === "catalog" ? "catalog-mode" : ""}`}
               >
                 {/* ========================================================= */}
                 {/* PAGE 01: COMMAND OVERVIEW                                 */}
                 {/* ========================================================= */}
                 {page === "overview" && (
-                  <Reveal
-                    distance={22}
-                    duration={0.5}
-                    stagger={0.05}
-                    trigger="mount"
-                    className="page-stack"
-                  >
+                  <div className="page-stack page-enter">
                     <section className="hero-showcase">
                       <AsciiCanvas
                         className="hero-ascii-bg"
@@ -1429,7 +1971,7 @@ export default function App() {
                           </span>
                         </div>
 
-                        <div className="hero-wordmark">
+                        <div className="hero-wordmark no-cursor-lock">
                           <TechWordmark
                             text="WORLDQUANT  ALPHA"
                             fontFamily="Space Grotesk"
@@ -1447,10 +1989,9 @@ export default function App() {
                             labels={false}
                             draggable={false}
                             bounce={0.35}
-                            clickKick
                             sweep
                             intro="metrics"
-                            introDuration={1.4}
+                            introDuration={1.1}
                             guides={false}
                           />
                         </div>
@@ -1465,30 +2006,24 @@ export default function App() {
                           <div className="showcase-auth-banner">
                             <div className="auth-banner-copy">
                               <span className="step-num">
-                                STEP 01 · CONSULTANT AUTHENTICATION REQUIRED
+                                STEP 01 · AUTHENTICATION REQUIRED
                               </span>
                               <h3>Connect Your WorldQuant BRAIN Account</h3>
                               <p>
-                                Sign in once to unlock live TOP3000 cloud
-                                simulations, portfolio synchronization, and
-                                automated self-correlation checks.
+                                Sign in with your WorldQuant BRAIN credentials
+                                to unlock your portfolio dashboard, alpha vault,
+                                and cloud simulations.
                               </p>
                             </div>
                             <div className="auth-banner-actions">
                               <button
+                                type="button"
                                 className="guide-btn primary"
                                 onClick={() => setLoginOpen(true)}
                               >
                                 <LockKeyhole size={15} />
                                 <span>Sign In to WorldQuant BRAIN</span>
                                 <ArrowRight size={15} />
-                              </button>
-                              <button
-                                className="guide-btn"
-                                onClick={() => switchPage("factory")}
-                              >
-                                <span>Open Alpha Studio</span>
-                                <ArrowRight size={14} />
                               </button>
                             </div>
                           </div>
@@ -1510,6 +2045,7 @@ export default function App() {
                                 Local Ollama directly in the Studio.
                               </p>
                               <button
+                                type="button"
                                 className="guide-btn"
                                 onClick={generatePreview}
                                 disabled={busy === "preview"}
@@ -1539,12 +2075,13 @@ export default function App() {
                                 Fitness ≥ 1.00, and Self-Correlation &lt; 0.70.
                               </p>
                               <button
+                                type="button"
                                 className="guide-btn primary"
                                 onClick={runBatch}
                                 disabled={!!taskId || busy === "batch"}
                               >
                                 <span>
-                                  {taskId
+                                  {taskId || busy === "batch"
                                     ? "Simulation Running…"
                                     : "Auto-Mine 1 Alpha Now"}
                                 </span>
@@ -1556,1180 +2093,1329 @@ export default function App() {
                       </div>
                     </section>
 
-                    <div className="metrics-grid">
-                      <MetricCard
-                        label="TOTAL ALPHAS MINED"
-                        value=""
-                        numeric={stats.total || 0}
-                        sub="Local Archive"
-                        guide="Click to browse all 90 audited alphas"
-                        tone="emerald"
-                        onClick={() => {
-                          setVaultFilter("all");
-                          switchPage("vault");
-                        }}
+                    {!authenticated ? (
+                      <AuthGateCard
+                        title="Sign in to Continue"
+                        description="Your personal portfolio metrics, audited alpha registry, and simulation telemetry are private and locked until you sign in."
+                        buttonLabel="Sign In to View Dashboard"
+                        onSignIn={() => setLoginOpen(true)}
                       />
-                      <MetricCard
-                        label="HURDLE PASSED SIGNALS"
-                        value=""
-                        numeric={hurdlePassedCount || stats.submittable || 0}
-                        sub="Sharpe ≥ 1.25 · Fit ≥ 1.0"
-                        guide="Passed core WorldQuant metric hurdles"
-                        tone="gold"
-                        onClick={() => {
-                          setVaultFilter("hurdles");
-                          switchPage("vault");
-                        }}
-                      />
-                      <MetricCard
-                        label="PEAK FITNESS SCORE"
-                        value=""
-                        numeric={stats.leader_fitness || 0}
-                        decimals={2}
-                        sub={
-                          stats.leader_id
-                            ? `Top: ${stats.leader_id}`
-                            : "Hurdle ≥ 1.00"
-                        }
-                        guide="Highest risk-adjusted fitness score"
-                        tone="ink"
-                        onClick={() => switchPage("vault")}
-                      />
-                      <MetricCard
-                        label="ACTIVE ON BRAIN"
-                        value=""
-                        numeric={stats.active || 0}
-                        sub="Live Portfolio"
-                        guide="Submitted live portfolio alphas"
-                        tone="amber"
-                        onClick={() => {
-                          setVaultFilter("submitted");
-                          switchPage("vault");
-                        }}
-                      />
-                    </div>
-
-                    <div className="overview-middle">
-                      <section className="chart-card glass-soft">
-                        <div className="section-head">
-                          <div>
-                            <span className="eyebrow">
-                              PORTFOLIO PERFORMANCE FRONTIER
-                            </span>
-                            <h2>Top Audited Signals &amp; Hurdle Standing</h2>
-                          </div>
-                          <div className="segmented">
-                            <button
-                              className={
-                                timeframe === "today" ? "selected" : ""
-                              }
-                              onClick={() => setTimeframe("today")}
-                            >
-                              Today
-                            </button>
-                            <button
-                              className={timeframe === "all" ? "selected" : ""}
-                              onClick={() => setTimeframe("all")}
-                            >
-                              All Time
-                            </button>
-                          </div>
+                    ) : (
+                      <>
+                        {/* SINGLE-LINE CONCENTRIC KPI METRIC CARDS */}
+                        <div className="metrics-grid">
+                          <MetricCard
+                            label="TOTAL ALPHAS"
+                            value=""
+                            numeric={stats.total || alphas.length}
+                            sub="Local Archive"
+                            guide="Click to browse audited alphas in Vault"
+                            tone="emerald"
+                            onClick={() => {
+                              setVaultFilter("all");
+                              switchPage("vault");
+                            }}
+                          />
+                          <MetricCard
+                            label="HURDLE PASSED"
+                            value=""
+                            numeric={hurdlePassedCount}
+                            sub="Sharpe ≥ 1.25"
+                            guide="Passed Sharpe ≥ 1.25 & Fitness ≥ 1.00"
+                            tone="gold"
+                            onClick={() => {
+                              setVaultFilter("hurdles");
+                              switchPage("vault");
+                            }}
+                          />
+                          <MetricCard
+                            label="PEAK FITNESS"
+                            value=""
+                            numeric={stats.leader_fitness || 0}
+                            decimals={2}
+                            sub={
+                              stats.leader_id
+                                ? `Top · ${stats.leader_id}`
+                                : "Top Signal"
+                            }
+                            guide="Highest audited fitness score in vault"
+                            tone="ink"
+                            onClick={() => {
+                              const leader = alphas.find(
+                                (x) => x.id === stats.leader_id,
+                              );
+                              if (leader) void openAlpha(leader);
+                            }}
+                          />
+                          <MetricCard
+                            label="ACTIVE ON BRAIN"
+                            value=""
+                            numeric={stats.active || 0}
+                            sub="Live Portfolio"
+                            guide="Submitted alphas in WorldQuant portfolio"
+                            tone="amber"
+                            onClick={() => switchPage("personal")}
+                          />
                         </div>
-                        <SignalFrontierChart
-                          alphas={filtered}
+
+                        <div className="overview-middle">
+                          <section className="chart-card glass-soft">
+                            <div className="section-head">
+                              <div>
+                                <span className="eyebrow">
+                                  PORTFOLIO SIGNAL FRONTIER
+                                </span>
+                                <h2>Top Audited Alpha Candidates</h2>
+                                <p className="section-sub">
+                                  Direct fitness &amp; Sharpe comparison of your
+                                  top evaluated factors. Click any signal to
+                                  inspect its check matrix.
+                                </p>
+                              </div>
+                              <ButtonBase
+                                className="small"
+                                onClick={() => switchPage("vault")}
+                              >
+                                <span>View All ({alphas.length})</span>
+                                <ArrowRight size={13} />
+                              </ButtonBase>
+                            </div>
+
+                            <SignalFrontierChart
+                              alphas={alphas}
+                              selectedId={selected?.id}
+                              onSelect={openAlpha}
+                            />
+                          </section>
+
+                          <section className="archetype-showcase-card glass-soft">
+                            <span className="eyebrow">FACTOR BLUEPRINTS</span>
+                            <h2>5 Proven Alpha Archetypes</h2>
+                            <p className="section-sub">
+                              Select an institutional factor blueprint to
+                              synthesize and customize in Alpha Studio.
+                            </p>
+
+                            <div className="archetype-list">
+                              {ARCHETYPE_OPTIONS.slice(0, 4).map(
+                                (item, idx) => (
+                                  <button
+                                    key={item.title}
+                                    type="button"
+                                    className={`archetype-item ${archetype === idx ? "active" : ""}`}
+                                    onClick={() => setArchetype(idx)}
+                                  >
+                                    <span className="arch-idx">
+                                      0{idx + 1}
+                                    </span>
+                                    <div className="arch-copy">
+                                      <strong>{item.title}</strong>
+                                      <small>{item.meta}</small>
+                                    </div>
+                                  </button>
+                                ),
+                              )}
+                            </div>
+
+                            <div className="pipeline-actions">
+                              <ButtonBase
+                                className="primary full"
+                                busy={busy === "preview"}
+                                busyLabel="Synthesizing Blueprint…"
+                                done={doneAction === "preview"}
+                                onClick={generatePreview}
+                              >
+                                <FlaskConical size={15} />
+                                <span>Load Selected Blueprint</span>
+                                <ArrowRight size={14} />
+                              </ButtonBase>
+                            </div>
+                          </section>
+                        </div>
+
+                        <AlphaTable
+                          rows={alphas.slice(0, 7)}
                           selectedId={selected?.id}
                           onSelect={openAlpha}
+                          onClone={cloneToFactory}
+                          onSubmit={submit}
+                          search={search}
+                          setSearch={setSearch}
+                          title="Recent Alpha Candidates"
+                          subtitle="Click any candidate row to inspect its telemetry, self-correlation, and platform checks on the right."
+                          empty="No evaluated alphas yet. Click 'Load Selected Blueprint' to begin."
                         />
-                      </section>
-
-                      <section className="archetype-showcase-card glass-soft">
-                        <span className="eyebrow">FACTOR TEMPLATES</span>
-                        <h2>Institutional Archetypes</h2>
-                        <p className="section-sub">
-                          Select a quantitative factor template to load into the
-                          Alpha Studio editor:
-                        </p>
-                        <div className="archetype-list">
-                          {ARCHETYPE_OPTIONS.slice(0, 4).map((item, idx) => (
-                            <button
-                              key={item.title}
-                              className={`archetype-item ${archetype === idx ? "active" : ""}`}
-                              onClick={() => {
-                                setArchetype(idx);
-                                setEngine("algorithmic");
-                              }}
-                            >
-                              <span className="arch-idx">0{idx + 1}</span>
-                              <div className="arch-copy">
-                                <strong>{item.title}</strong>
-                                <small>{item.meta}</small>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="pipeline-actions">
-                          <ButtonBase
-                            className="primary full"
-                            onClick={generatePreview}
-                            disabled={busy === "preview"}
-                          >
-                            <FlaskConical size={15} /> Load Selected Blueprint{" "}
-                            <ArrowRight size={15} />
-                          </ButtonBase>
-                        </div>
-                      </section>
-                    </div>
-
-                    <AlphaTable
-                      rows={filtered.slice(0, 8)}
-                      selectedId={selected?.id}
-                      onSelect={openAlpha}
-                      onSubmit={submit}
-                      search={search}
-                      setSearch={setSearch}
-                      title="Recent Alpha Candidates"
-                      subtitle="Click any candidate row to inspect its telemetry, self-correlation, and platform checks on the right."
-                      empty="No alphas match your current filter."
-                    />
-                  </Reveal>
+                      </>
+                    )}
+                  </div>
                 )}
 
                 {/* ========================================================= */}
-                {/* PAGE 02: ALPHA STUDIO (SWAPPED COLUMNS & CLEAN SPACING)   */}
+                {/* PAGE 02: ALPHA STUDIO                                     */}
                 {/* ========================================================= */}
-                {page === "factory" && (
-                  <Reveal
-                    distance={22}
-                    duration={0.5}
-                    stagger={0.05}
-                    trigger="mount"
-                    className="page-stack studio-stack"
-                  >
-                    {/* STEP 01: SPACIOUS BLUEPRINT SYNTHESIS HEADER */}
-                    <section className="generator-bar glass-soft">
-                      <div className="generator-intro">
-                        <span className="eyebrow">
-                          STEP 01 · FORMULA SYNTHESIS
-                        </span>
-                        <h2>Generate or Load a Factor Blueprint</h2>
-                        <p className="section-sub">
-                          Choose a synthesis engine and factor archetype below,
-                          then load the generated FastExpr formula directly into
-                          the code studio.
-                        </p>
-                      </div>
-
-                      <div className="generator-controls">
-                        <label>
-                          Synthesis Mode
-                          <CustomSelect
-                            value={engine}
-                            onChange={setEngine}
-                            options={[
-                              {
-                                value: "algorithmic",
-                                label: "Algorithmic Grammar Trees",
-                                sub: "Deterministic local factor trees",
-                              },
-                              {
-                                value: "cloud_ai",
-                                label: "Google Gemini 2.0 Flash",
-                                sub: "Cloud quantitative AI synthesis",
-                              },
-                              {
-                                value: "ollama",
-                                label: "Local Ollama (DeepSeek-R1)",
-                                sub: "Private offline LLM agent",
-                              },
-                            ]}
-                          />
-                        </label>
-
-                        {engine === "algorithmic" ? (
-                          <label>
-                            Quantitative Factor Archetype
-                            <CustomSelect
-                              value={archetype}
-                              onChange={(val) => setArchetype(Number(val))}
-                              options={ARCHETYPE_OPTIONS.map((item, idx) => ({
-                                value: idx,
-                                label: `${String(idx + 1).padStart(2, "0")} · ${item.title}`,
-                                sub: item.meta,
-                              }))}
-                            />
-                          </label>
-                        ) : (
-                          <label>
-                            AI Factor Hypothesis Prompt
-                            <input
-                              value={hypothesis}
-                              onChange={(event) =>
-                                setHypothesis(event.target.value)
-                              }
-                              placeholder="e.g. Combine analyst EPS revisions with 2-day VWAP mean reversion"
-                            />
-                          </label>
-                        )}
-
-                        <Magnetic padding={18} magnetStrength={4}>
-                          <ButtonBase
-                            className="primary generate-cta"
-                            onClick={generatePreview}
-                            disabled={busy === "preview"}
-                          >
-                            <Wand2 size={15} />
-                            <span>
-                              {busy === "preview"
-                                ? "Synthesizing…"
-                                : "Load Formula into Studio"}
-                            </span>
-                          </ButtonBase>
-                        </Magnetic>
-                      </div>
-                    </section>
-
-                    {/* SWAPPED 2-COLUMN WORKBENCH: LEFT = CONFIGURE BACKTEST, RIGHT = FASTEXPR STUDIO */}
-                    <div className="factory-top swapped">
-                      {/* LEFT COLUMN: STEP 02 · CONFIGURE BACKTEST */}
-                      <div className="factory-control glass-soft">
-                        <div className="studio-card-head">
-                          <span className="eyebrow">
-                            STEP 02 · SIMULATION PARAMETERS
-                          </span>
-                          <h2>Configure Backtest</h2>
-                        </div>
-
-                        <form onSubmit={onSimulate}>
-                          <label>
-                            Candidate Identifier
-                            <input
-                              value={alphaName}
-                              onChange={(e) => setAlphaName(e.target.value)}
-                              required
-                            />
-                          </label>
-
-                          <div className="form-dual">
-                            <label>
-                              Market Region
-                              <CustomSelect
-                                value={region}
-                                onChange={setRegion}
-                                options={[
-                                  {
-                                    value: "USA",
-                                    label: "USA Equities",
-                                    sub: "US liquid market",
-                                  },
-                                  {
-                                    value: "EUR",
-                                    label: "EUR Equities",
-                                    sub: "European markets",
-                                  },
-                                  {
-                                    value: "ASI",
-                                    label: "ASI Equities",
-                                    sub: "Asian markets",
-                                  },
-                                  {
-                                    value: "GLB",
-                                    label: "GLB Equities",
-                                    sub: "Global universe",
-                                  },
-                                ]}
-                              />
-                            </label>
-                            <label>
-                              Stock Universe
-                              <CustomSelect
-                                value={universe}
-                                onChange={setUniverse}
-                                options={[
-                                  {
-                                    value: "TOP3000",
-                                    label: "TOP3000",
-                                    sub: "Broad liquid benchmark",
-                                  },
-                                  {
-                                    value: "TOP1000",
-                                    label: "TOP1000",
-                                    sub: "Large & mid cap",
-                                  },
-                                  {
-                                    value: "TOP500",
-                                    label: "TOP500",
-                                    sub: "High liquidity",
-                                  },
-                                  {
-                                    value: "TOP200",
-                                    label: "TOP200",
-                                    sub: "Mega cap leaders",
-                                  },
-                                ]}
-                              />
-                            </label>
-                          </div>
-
-                          <div className="form-dual">
-                            <label>
-                              Data Delay
-                              <CustomSelect
-                                value={delay}
-                                onChange={(v) => setDelay(Number(v))}
-                                options={[
-                                  {
-                                    value: 1,
-                                    label: "D1 (Daily Close)",
-                                    sub: "Standard T-1 close",
-                                  },
-                                  {
-                                    value: 0,
-                                    label: "D0 (Intraday)",
-                                    sub: "Same-day snapshot",
-                                  },
-                                ]}
-                              />
-                            </label>
-                            <label>
-                              Neutralization
-                              <CustomSelect
-                                value={neutralization}
-                                onChange={setNeutralization}
-                                options={[
-                                  {
-                                    value: "SUBINDUSTRY",
-                                    label: "SUBINDUSTRY",
-                                    sub: "GICS subindustry neutral",
-                                  },
-                                  {
-                                    value: "INDUSTRY",
-                                    label: "INDUSTRY",
-                                    sub: "Industry group neutral",
-                                  },
-                                  {
-                                    value: "SECTOR",
-                                    label: "SECTOR",
-                                    sub: "Broad sector neutral",
-                                  },
-                                  {
-                                    value: "MARKET",
-                                    label: "MARKET",
-                                    sub: "Dollar market neutral",
-                                  },
-                                  {
-                                    value: "NONE",
-                                    label: "NONE",
-                                    sub: "Unneutralized raw weights",
-                                  },
-                                ]}
-                              />
-                            </label>
-                          </div>
-
-                          <div className="form-dual">
-                            <label>
-                              Linear Decay{" "}
-                              <span className="label-value">{decay} DAYS</span>
-                              <input
-                                type="range"
-                                min="0"
-                                max="60"
-                                value={decay}
-                                onChange={(e) =>
-                                  setDecay(Number(e.target.value))
-                                }
-                              />
-                            </label>
-                            <label>
-                              Weight Truncation{" "}
-                              <span className="label-value">
-                                {truncation.toFixed(2)}
-                              </span>
-                              <input
-                                type="range"
-                                min="0.01"
-                                max="0.15"
-                                step="0.01"
-                                value={truncation}
-                                onChange={(e) =>
-                                  setTruncation(Number(e.target.value))
-                                }
-                              />
-                            </label>
-                          </div>
-
-                          <label>
-                            Pasteurization
-                            <CustomSelect
-                              value={pasteurization}
-                              onChange={setPasteurization}
-                              options={[
-                                {
-                                  value: "ON",
-                                  label: "ON · Standardize Outliers",
-                                  sub: "Recommended for WorldQuant hurdles",
-                                },
-                                {
-                                  value: "OFF",
-                                  label: "OFF · Raw Unfiltered Signal",
-                                  sub: "Disable outlier winsorization",
-                                },
-                              ]}
-                            />
-                          </label>
-
-                          <div className="factory-cta-stack">
-                            <ButtonBase
-                              type="submit"
-                              className="primary full"
-                              disabled={busy === "simulate" || !!taskId}
-                            >
-                              <Play size={15} fill="currentColor" />
-                              <span>
-                                {taskId
-                                  ? "Simulating on BRAIN…"
-                                  : "Simulate & Audit Formula"}
-                              </span>
-                            </ButtonBase>
-
-                            <ButtonBase
-                              className="full"
-                              onClick={runBatch}
-                              disabled={!!taskId || busy === "batch"}
-                            >
-                              <Sparkles size={15} />
-                              <span>Auto-Mine New Candidate</span>
-                            </ButtonBase>
-                          </div>
-                        </form>
-                      </div>
-
-                      {/* RIGHT COLUMN: STEP 03 · CLEAN FASTEXPR FORMULA STUDIO */}
-                      <div
-                        className="studio-editor-card glass-soft"
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          void importCandidate(event.dataTransfer.files[0]);
-                        }}
-                      >
-                        <div className="studio-editor-header">
+                {page === "factory" &&
+                  (!authenticated ? (
+                    <AuthGateCard
+                      title="Sign in to Continue"
+                      description="Connect your WorldQuant BRAIN account to synthesize formulas, configure backtests, and dispatch simulations."
+                      buttonLabel="Sign In to Open Alpha Studio"
+                      onSignIn={() => setLoginOpen(true)}
+                    />
+                  ) : (
+                    <div className="page-stack studio-stack page-enter">
+                      <section className="generator-bar glass-soft">
+                        <div className="generator-bar-head">
                           <div>
                             <span className="eyebrow">
-                              STEP 03 · FASTEXPR FORMULA STUDIO
+                              STEP 01 · FORMULA SYNTHESIS
                             </span>
-                            <h2>Expression Editor</h2>
-                          </div>
-                          <div className="studio-editor-tools">
-                            <CustomSelect
-                              className="operator-picker"
-                              value=""
-                              ariaLabel="Insert FastExpr operator"
-                              onChange={(snippet) => {
-                                if (snippet)
-                                  setExpression((x) => `${x}${snippet}`);
-                              }}
-                              options={[
-                                {
-                                  value: "",
-                                  label: "+ Insert Operator",
-                                  sub: "Append standard FastExpr function",
-                                },
-                                ...OPERATOR_GUIDES.map((op) => ({
-                                  value: op.snippet,
-                                  label: op.label,
-                                  sub: op.guide,
-                                })),
-                              ]}
-                            />
+                            <h2>Generate or Load a Factor Blueprint</h2>
                           </div>
                         </div>
 
-                        <div className="clean-code-surface">
-                          <div
-                            className="clean-line-numbers"
-                            aria-hidden="true"
+                        <div className="generator-controls">
+                          <label>
+                            Synthesis Engine
+                            <CustomSelect
+                              value={engine}
+                              onChange={setEngine}
+                              options={[
+                                {
+                                  value: "algorithmic",
+                                  label: "Algorithmic Grammar Tree",
+                                  sub: "Deterministic multi-factor AST",
+                                },
+                                {
+                                  value: "cloud_ai",
+                                  label: "Cloud AI (Gemini 2.0 Flash)",
+                                  sub: "LLM-guided alpha synthesis",
+                                },
+                                {
+                                  value: "ollama",
+                                  label: "Local Ollama (DeepSeek R1)",
+                                  sub: "100% private local inference",
+                                },
+                              ]}
+                            />
+                          </label>
+
+                          {engine === "algorithmic" ? (
+                            <label>
+                              Quantitative Factor Blueprint
+                              <CustomSelect
+                                value={archetype}
+                                onChange={(val) => setArchetype(Number(val))}
+                                options={ARCHETYPE_OPTIONS.map((item, idx) => ({
+                                  value: idx,
+                                  label: `${String(idx + 1).padStart(2, "0")} · ${item.title}`,
+                                  sub: item.meta,
+                                }))}
+                              />
+                            </label>
+                          ) : (
+                            <label>
+                              AI Factor Hypothesis Prompt
+                              <input
+                                value={hypothesis}
+                                onChange={(event) =>
+                                  setHypothesis(event.target.value)
+                                }
+                                placeholder="e.g. Combine analyst EPS revisions with 2-day VWAP mean reversion"
+                              />
+                            </label>
+                          )}
+
+                          <ButtonBase
+                            className="primary generate-cta"
+                            busy={busy === "preview"}
+                            busyLabel="Synthesizing…"
+                            done={doneAction === "preview"}
+                            onClick={generatePreview}
                           >
-                            {expression.split("\n").map((_, i) => (
-                              <span key={i}>
-                                {String(i + 1).padStart(2, "0")}
+                            <Wand2 size={15} />
+                            <span>Load Formula into Studio</span>
+                          </ButtonBase>
+                        </div>
+                      </section>
+
+                      <div className="factory-top swapped">
+                        {/* LEFT COLUMN: STEP 02 · CONFIGURE BACKTEST */}
+                        <div className="factory-control glass-soft">
+                          <div className="studio-card-head">
+                            <span className="eyebrow">
+                              STEP 02 · SIMULATION PARAMETERS
+                            </span>
+                            <h2>Configure Backtest</h2>
+                          </div>
+
+                          <form onSubmit={onSimulate}>
+                            <label>
+                              Candidate Identifier
+                              <input
+                                value={alphaName}
+                                onChange={(e) => setAlphaName(e.target.value)}
+                                required
+                              />
+                            </label>
+
+                            <div className="form-dual">
+                              <label>
+                                Market Region
+                                <CustomSelect
+                                  value={region}
+                                  onChange={setRegion}
+                                  options={[
+                                    {
+                                      value: "USA",
+                                      label: "USA Equities",
+                                      sub: "US liquid market",
+                                    },
+                                    {
+                                      value: "EUR",
+                                      label: "EUR Equities",
+                                      sub: "European markets",
+                                    },
+                                    {
+                                      value: "ASI",
+                                      label: "ASI Equities",
+                                      sub: "Asian markets",
+                                    },
+                                    {
+                                      value: "GLB",
+                                      label: "GLB Equities",
+                                      sub: "Global universe",
+                                    },
+                                  ]}
+                                />
+                              </label>
+                              <label>
+                                Stock Universe
+                                <CustomSelect
+                                  value={universe}
+                                  onChange={setUniverse}
+                                  options={[
+                                    {
+                                      value: "TOP3000",
+                                      label: "TOP3000",
+                                      sub: "Broad liquid benchmark",
+                                    },
+                                    {
+                                      value: "TOP1000",
+                                      label: "TOP1000",
+                                      sub: "Large & mid cap",
+                                    },
+                                    {
+                                      value: "TOP500",
+                                      label: "TOP500",
+                                      sub: "High liquidity",
+                                    },
+                                    {
+                                      value: "TOP200",
+                                      label: "TOP200",
+                                      sub: "Mega cap leaders",
+                                    },
+                                  ]}
+                                />
+                              </label>
+                            </div>
+
+                            <div className="form-dual">
+                              <label>
+                                Data Delay
+                                <CustomSelect
+                                  value={delay}
+                                  onChange={(v) => setDelay(Number(v))}
+                                  options={[
+                                    {
+                                      value: 1,
+                                      label: "D1 (Daily Close)",
+                                      sub: "Standard T-1 close",
+                                    },
+                                    {
+                                      value: 0,
+                                      label: "D0 (Intraday)",
+                                      sub: "Same-day snapshot",
+                                    },
+                                  ]}
+                                />
+                              </label>
+                              <label>
+                                Neutralization
+                                <CustomSelect
+                                  value={neutralization}
+                                  onChange={setNeutralization}
+                                  options={[
+                                    {
+                                      value: "SUBINDUSTRY",
+                                      label: "SUBINDUSTRY",
+                                      sub: "GICS subindustry neutral",
+                                    },
+                                    {
+                                      value: "INDUSTRY",
+                                      label: "INDUSTRY",
+                                      sub: "Industry group neutral",
+                                    },
+                                    {
+                                      value: "SECTOR",
+                                      label: "SECTOR",
+                                      sub: "Broad sector neutral",
+                                    },
+                                    {
+                                      value: "MARKET",
+                                      label: "MARKET",
+                                      sub: "Dollar market neutral",
+                                    },
+                                    {
+                                      value: "NONE",
+                                      label: "NONE",
+                                      sub: "Unneutralized raw weights",
+                                    },
+                                  ]}
+                                />
+                              </label>
+                            </div>
+
+                            {/* CLEAN PRECISION RANGE SLIDERS WITH STEADY READOUT (Fixes Screenshot 1) */}
+                            <div className="form-dual">
+                              <label className="range-field-label">
+                                <span className="range-label-row">
+                                  <span>Linear Decay</span>
+                                  <b className="range-readout mono">
+                                    {decay} DAYS
+                                  </b>
+                                </span>
+                                <input
+                                  type="range"
+                                  className="studio-range no-cursor-lock"
+                                  min="0"
+                                  max="60"
+                                  step="1"
+                                  value={decay}
+                                  style={
+                                    {
+                                      "--range-pct": `${decayPct}%`,
+                                    } as React.CSSProperties
+                                  }
+                                  onChange={(e) =>
+                                    setDecay(Number(e.target.value))
+                                  }
+                                />
+                              </label>
+
+                              <label className="range-field-label">
+                                <span className="range-label-row">
+                                  <span>Weight Truncation</span>
+                                  <b className="range-readout mono">
+                                    {truncation.toFixed(2)}
+                                  </b>
+                                </span>
+                                <input
+                                  type="range"
+                                  className="studio-range no-cursor-lock"
+                                  min="0.01"
+                                  max="0.15"
+                                  step="0.01"
+                                  value={truncation}
+                                  style={
+                                    {
+                                      "--range-pct": `${truncPct}%`,
+                                    } as React.CSSProperties
+                                  }
+                                  onChange={(e) =>
+                                    setTruncation(Number(e.target.value))
+                                  }
+                                />
+                              </label>
+                            </div>
+
+                            <label>
+                              Pasteurization
+                              <CustomSelect
+                                value={pasteurization}
+                                onChange={setPasteurization}
+                                options={[
+                                  {
+                                    value: "ON",
+                                    label: "ON · Standardize Outliers",
+                                    sub: "Recommended for WorldQuant BRAIN",
+                                  },
+                                  {
+                                    value: "OFF",
+                                    label: "OFF · Raw Unfiltered Signal",
+                                    sub: "Disable outlier clipping",
+                                  },
+                                ]}
+                              />
+                            </label>
+
+                            <div className="factory-cta-stack">
+                              <ButtonBase
+                                type="submit"
+                                className="primary full"
+                                busy={busy === "simulate" || !!taskId}
+                                busyLabel="Simulating on BRAIN…"
+                                done={doneAction === "simulate"}
+                              >
+                                <Play size={15} />
+                                <span>Simulate &amp; Audit Formula</span>
+                              </ButtonBase>
+
+                              <ButtonBase
+                                type="button"
+                                className="full"
+                                busy={busy === "batch"}
+                                busyLabel="Auto-Mining…"
+                                done={doneAction === "batch"}
+                                onClick={runBatch}
+                                disabled={!!taskId}
+                              >
+                                <Sparkles size={15} />
+                                <span>Auto-Mine New Candidate</span>
+                              </ButtonBase>
+                            </div>
+                          </form>
+                        </div>
+
+                        {/* RIGHT COLUMN: STEP 03 · CLEAN FASTEXPR FORMULA STUDIO */}
+                        <div
+                          className="studio-editor-card glass-soft"
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            void importCandidate(event.dataTransfer.files[0]);
+                          }}
+                        >
+                          <div className="studio-editor-header">
+                            <div>
+                              <span className="eyebrow">
+                                STEP 03 · FASTEXPR FORMULA STUDIO
+                              </span>
+                              <h2>Expression Editor</h2>
+                            </div>
+                            <div className="studio-editor-tools">
+                              <CustomSelect
+                                className="operator-picker"
+                                value=""
+                                ariaLabel="Insert FastExpr operator"
+                                onChange={(snippet) => {
+                                  if (snippet)
+                                    setExpression((x) => `${x}${snippet}`);
+                                }}
+                                options={[
+                                  {
+                                    value: "",
+                                    label: "+ Insert Operator",
+                                    sub: "Append standard FastExpr function",
+                                  },
+                                  ...OPERATOR_GUIDES.map((op) => ({
+                                    value: op.snippet,
+                                    label: op.label,
+                                    sub: op.guide,
+                                  })),
+                                ]}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="clean-code-surface">
+                            <div
+                              className="clean-line-numbers"
+                              aria-hidden="true"
+                            >
+                              {expression.split("\n").map((_, i) => (
+                                <span key={i}>
+                                  {String(i + 1).padStart(2, "0")}
+                                </span>
+                              ))}
+                            </div>
+                            <textarea
+                              className="selectable-code no-cursor-lock"
+                              aria-label="Alpha expression"
+                              spellCheck={false}
+                              value={expression}
+                              onChange={(e) => setExpression(e.target.value)}
+                            />
+                          </div>
+
+                          <div
+                            className={`clean-editor-status ${validateExpression(expression).startsWith("Syntax") ? "valid" : "invalid"}`}
+                          >
+                            <span>{validateExpression(expression)}</span>
+                            <span>
+                              {region} · {universe} · D{delay} ·{" "}
+                              {expression.split("\n").length} LINES
+                            </span>
+                          </div>
+
+                          <div className="clean-editor-footer">
+                            <label className="button">
+                              <FileUp size={14} />
+                              <span>Import JSON / CSV</span>
+                              <input
+                                type="file"
+                                accept=".json,.csv,application/json,text/csv"
+                                style={{ display: "none" }}
+                                onChange={(e) =>
+                                  void importCandidate(e.target.files?.[0])
+                                }
+                              />
+                            </label>
+                            <ButtonBase onClick={() => switchPage("catalog")}>
+                              <Database size={14} />
+                              <span>Browse 4,367 Data Fields</span>
+                              <ArrowRight size={14} />
+                            </ButtonBase>
+                          </div>
+                        </div>
+                      </div>
+
+                      <section className="simulation-console recessed">
+                        <div className="console-header">
+                          <div className="console-title">
+                            <Activity size={16} />
+                            <span>LIVE EXECUTION &amp; HURDLE PIPELINE</span>
+                          </div>
+                          <div className="pipeline-steps-inline">
+                            {[
+                              [1, "1. Compile FastExpr"],
+                              [2, "2. Cloud Simulation"],
+                              [3, "3. 7-Hurdle Audit"],
+                              [4, "4. Self-Corr < 0.70"],
+                            ].map(([idx, label]) => (
+                              <span
+                                key={idx}
+                                className={`pipe-pill ${simStage >= Number(idx) ? "done" : ""}`}
+                              >
+                                {label}
                               </span>
                             ))}
                           </div>
-                          <textarea
-                            className="selectable-code"
-                            aria-label="Alpha expression"
-                            spellCheck={false}
-                            value={expression}
-                            onChange={(e) => setExpression(e.target.value)}
-                          />
-                        </div>
-
-                        <div
-                          className={`clean-editor-status ${validateExpression(expression).startsWith("Syntax") ? "valid" : "invalid"}`}
-                        >
-                          <span>{validateExpression(expression)}</span>
-                          <span>
-                            {region} · {universe} · D{delay} ·{" "}
-                            {expression.split("\n").length} LINES
+                          <span className="console-state">
+                            {task?.status || "READY"}
                           </span>
                         </div>
 
-                        <div className="clean-editor-footer">
-                          <label className="button">
-                            <FileUp size={14} />
-                            <span>Import JSON / CSV</span>
-                            <input
-                              type="file"
-                              accept=".json,.csv,application/json,text/csv"
-                              style={{ display: "none" }}
-                              onChange={(e) =>
-                                void importCandidate(e.target.files?.[0])
-                              }
-                            />
-                          </label>
-                          <ButtonBase onClick={() => switchPage("catalog")}>
-                            <Database size={14} />
-                            <span>Browse 4,367 Data Fields</span>
-                            <ArrowRight size={14} />
-                          </ButtonBase>
-                        </div>
-                      </div>
-                    </div>
+                        <pre className="selectable-code">
+                          {(
+                            task?.logs || [
+                              "[SYSTEM] Studio ready. Configure parameters on the left, review your FastExpr formula on the right, and click 'Simulate & Audit Formula'.",
+                            ]
+                          ).join("\n")}
+                        </pre>
 
-                    {/* UNIFIED SIMULATION PIPELINE CONSOLE */}
-                    <section className="simulation-console recessed">
-                      <div className="console-header">
-                        <div className="console-title">
-                          <Activity size={16} />
-                          <span>LIVE EXECUTION &amp; HURDLE PIPELINE</span>
-                        </div>
-                        <div className="pipeline-steps-inline">
-                          {[
-                            [1, "1. Compile FastExpr"],
-                            [2, "2. Cloud Simulation"],
-                            [3, "3. 7-Hurdle Audit"],
-                            [4, "4. Self-Corr < 0.70"],
-                          ].map(([idx, label]) => (
-                            <span
-                              key={idx}
-                              className={`pipe-pill ${simStage >= Number(idx) ? "done" : ""}`}
-                            >
-                              {label}
-                            </span>
-                          ))}
-                        </div>
-                        <span className="console-state">
-                          {task?.status || "READY"}
-                        </span>
-                      </div>
-
-                      <pre className="selectable-code">
-                        {(
-                          task?.logs || [
-                            "[SYSTEM] Studio ready. Configure parameters on the left, review your FastExpr formula on the right, and click 'Simulate & Audit Formula'.",
-                          ]
-                        ).join("\n")}
-                      </pre>
-
-                      {task?.candidate && (
-                        <div className="receipt-strip">
-                          <div>
-                            <small>CANDIDATE ID</small>
-                            <strong>{task.candidate.id}</strong>
-                          </div>
-                          <div>
-                            <small>SHARPE</small>
-                            <strong>{fmt(task.candidate.sharpe)}</strong>
-                          </div>
-                          <div>
-                            <small>FITNESS</small>
-                            <strong>{fmt(task.candidate.fitness)}</strong>
-                          </div>
-                          <div>
-                            <small>TURNOVER</small>
-                            <strong>{fmt(task.candidate.turnover_pct)}%</strong>
-                          </div>
-                          <div>
-                            <small>MARGIN</small>
-                            <strong>
-                              {fmt(task.candidate.margin_bps)} bps
-                            </strong>
-                          </div>
-                          <ButtonBase
-                            className="small primary"
-                            disabled={!task.candidate.is_submittable}
-                            onClick={() => submit(task.candidate as Alpha)}
-                          >
-                            Submit to BRAIN <ArrowRight size={13} />
-                          </ButtonBase>
-                        </div>
-                      )}
-                    </section>
-                  </Reveal>
-                )}
-
-                {/* ========================================================= */}
-                {/* PAGE 03: ALPHA VAULT (FULL SCROLL, CORRELATION & QUALITY) */}
-                {/* ========================================================= */}
-                {page === "vault" && (
-                  <Reveal
-                    distance={22}
-                    duration={0.5}
-                    stagger={0.05}
-                    trigger="mount"
-                    className="page-stack"
-                  >
-                    <div className="vault-summary four-col">
-                      <MetricCard
-                        label="TOTAL AUDITED"
-                        value=""
-                        numeric={stats.total || alphas.length}
-                        sub="100% Corr Checked"
-                        guide="All synced & simulated alphas in local DB"
-                        tone="emerald"
-                        onClick={() => setVaultFilter("all")}
-                      />
-                      <MetricCard
-                        label="HURDLES PASSED"
-                        value=""
-                        numeric={hurdlePassedCount}
-                        sub="Sharpe ≥ 1.25 · Fit ≥ 1.0"
-                        guide="Passed core WorldQuant return & fitness hurdles"
-                        tone="gold"
-                        onClick={() => setVaultFilter("hurdles")}
-                      />
-                      <MetricCard
-                        label="ORTHOGONAL (< 0.70)"
-                        value=""
-                        numeric={stats.submittable || 0}
-                        sub="Low Self-Correlation"
-                        guide="Passed both metric hurdles & < 0.70 correlation"
-                        tone="ink"
-                        onClick={() => setVaultFilter("submittable")}
-                      />
-                      <MetricCard
-                        label="SUBMITTED ON BRAIN"
-                        value=""
-                        numeric={stats.active || 0}
-                        sub="Live Portfolio"
-                        guide="Active alphas running in your BRAIN portfolio"
-                        tone="amber"
-                        onClick={() => setVaultFilter("submitted")}
-                      />
-                    </div>
-
-                    <div className="vault-controls glass-soft">
-                      <div className="segmented">
-                        {[
-                          ["all", `All Alphas (${alphas.length})`],
-                          ["hurdles", `Hurdle Passed (${hurdlePassedCount})`],
-                          [
-                            "submittable",
-                            `Orthogonal < 0.70 (${stats.submittable || 0})`,
-                          ],
-                          ["submitted", `Submitted (${stats.active || 0})`],
-                        ].map(([key, label]) => (
-                          <button
-                            key={key}
-                            className={vaultFilter === key ? "selected" : ""}
-                            onClick={() => {
-                              setVaultFilter(key);
-                              setVaultShown(90);
-                            }}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="segmented">
-                        <button
-                          className={vaultView === "table" ? "selected" : ""}
-                          onClick={() => setVaultView("table")}
-                        >
-                          Table View
-                        </button>
-                        <button
-                          className={vaultView === "bento" ? "selected" : ""}
-                          onClick={() => setVaultView("bento")}
-                        >
-                          Card Grid
-                        </button>
-                      </div>
-
-                      <ButtonBase
-                        onClick={compare}
-                        disabled={compareIds.length < 2}
-                      >
-                        Compare{" "}
-                        {compareIds.length ? `(${compareIds.length})` : ""}
-                      </ButtonBase>
-
-                      <a
-                        className="button export"
-                        href="/api/export-csv"
-                        download
-                      >
-                        <ArrowDownToLine size={15} /> Export CSV
-                      </a>
-                    </div>
-
-                    {vaultView === "bento" ? (
-                      <Bento
-                        className="vault-bento-grid"
-                        columns={3}
-                        gap={14}
-                        glowColor="19, 56, 41"
-                        enableSpotlight
-                        enableBorderGlow
-                        enableTilt={false}
-                        enableStars={false}
-                        enableMagnetism={false}
-                        clickEffect={false}
-                        intro={false}
-                        items={filtered.slice(0, vaultShown).map((alpha) => ({
-                          id: alpha.id,
-                          content: (
-                            <article
-                              className="vault-cartridge"
-                              onClick={() => void openAlpha(alpha)}
-                            >
-                              <div className="section-head">
-                                <strong className="mono">{alpha.id}</strong>
-                                <span
-                                  className={`status-chip ${outcomeClass(alpha)}`}
-                                >
-                                  {statusOf(alpha)}
-                                </span>
-                              </div>
-                              <p className="vault-expr">
-                                {alpha.expression ||
-                                  "Click to load expression & hurdle breakdown"}
-                              </p>
-                              <div className="vault-metrics">
-                                <span>
-                                  SHARPE <b>{fmt(alpha.sharpe)}</b>
-                                </span>
-                                <span>
-                                  FITNESS <b>{fmt(alpha.fitness)}</b>
-                                </span>
-                                <span>
-                                  CORR{" "}
-                                  <b>{fmt(alpha.max_self_correlation)}</b>
-                                </span>
-                              </div>
-                            </article>
-                          ),
-                        }))}
-                      />
-                    ) : (
-                      <AlphaTable
-                        rows={filtered.slice(0, vaultShown)}
-                        selectedId={selected?.id}
-                        onSelect={openAlpha}
-                        onSubmit={submit}
-                        search={search}
-                        setSearch={setSearch}
-                        title={`Audited Alpha Registry (${filtered.length} Signals)`}
-                        subtitle="Showing Sharpe, Fitness, Turnover, Self-Correlation (< 0.70 ceiling), and Quality Tier. Click any row to inspect."
-                        empty="No alphas match this filter."
-                        fullHeight
-                        compareIds={compareIds}
-                        onCompareToggle={(id) =>
-                          setCompareIds((x) =>
-                            x.includes(id)
-                              ? x.filter((v) => v !== id)
-                              : [...x, id],
-                          )
-                        }
-                      />
-                    )}
-                  </Reveal>
-                )}
-
-                {/* ========================================================= */}
-                {/* PAGE 04: DATA CATALOG (10 WHOLE ROWS PER VIEWPORT, NO CUT)*/}
-                {/* ========================================================= */}
-                {page === "catalog" && (
-                  <section className="catalog-card glass-soft full-viewport-catalog">
-                    <div className="catalog-controls">
-                      <label className="search-box no-cursor-lock">
-                        <Search size={16} />
-                        <input
-                          className="no-cursor-lock"
-                          placeholder="Search 4,367 equity data fields by ID or description…"
-                          value={fieldSearch}
-                          onChange={(e) => {
-                            setFieldSearch(e.target.value);
-                            setFieldPage(1);
-                          }}
-                        />
-                      </label>
-                      <CustomSelect
-                        className="catalog-select"
-                        value={fieldDataset}
-                        onChange={(val) => {
-                          setFieldDataset(val);
-                          setFieldPage(1);
-                        }}
-                        options={[
-                          {
-                            value: "",
-                            label: "All 14 Datasets",
-                            sub: "4,367 total equity fields",
-                          },
-                          ...datasets.map((d) => ({
-                            value: d.id,
-                            label: `${d.name} (${d.fields_count})`,
-                            sub: `Dataset ID: ${d.id}`,
-                          })),
-                        ]}
-                      />
-                      <span className="catalog-count">
-                        {NUMBER.format(fieldTotal)} FIELDS
-                      </span>
-                    </div>
-
-                    <div className="table-wrap catalog-table-wrap">
-                      <table className="catalog-table">
-                        <thead>
-                          <tr>
-                            <th className="col-field-id">FIELD ID</th>
-                            <th className="col-field-desc">DESCRIPTION</th>
-                            <th className="col-field-ds">DATASET</th>
-                            <th className="col-field-type">TYPE</th>
-                            <th className="col-field-action">INSERT</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {fields.map((f) => (
-                            <tr key={f.id}>
-                              <td className="col-field-id mono alpha-cell">
-                                {f.id}
-                              </td>
-                              <td className="col-field-desc">
-                                {f.description}
-                              </td>
-                              <td className="col-field-ds">
-                                <span className="dataset-tag">
-                                  {f.dataset_id}
-                                </span>
-                              </td>
-                              <td className="col-field-type mono">{f.type}</td>
-                              <td className="col-field-action">
-                                <ButtonBase
-                                  className="small primary"
-                                  onClick={() => {
-                                    setExpression((x) => `${x}\n${f.id}`);
-                                    switchPage("factory");
-                                    setNotice(
-                                      `Inserted field '${f.id}' into Alpha Studio editor.`,
-                                    );
-                                  }}
-                                >
-                                  <span>Insert</span>
-                                  <ArrowRight size={13} />
-                                </ButtonBase>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="pagination">
-                      <span className="pagination-info">
-                        SHOWING{" "}
-                        {fields.length
-                          ? (fieldPage - 1) * CATALOG_PAGE_SIZE + 1
-                          : 0}
-                        –
-                        {Math.min(
-                          fieldPage * CATALOG_PAGE_SIZE,
-                          fieldTotal,
-                        )}{" "}
-                        OF {NUMBER.format(fieldTotal)}
-                      </span>
-                      <div className="pagination-buttons">
-                        <ButtonBase
-                          disabled={fieldPage <= 1}
-                          onClick={() => setFieldPage((x) => x - 1)}
-                        >
-                          Previous
-                        </ButtonBase>
-                        <span>
-                          PAGE {fieldPage} OF{" "}
-                          {Math.max(
-                            1,
-                            Math.ceil(fieldTotal / CATALOG_PAGE_SIZE),
-                          )}
-                        </span>
-                        <ButtonBase
-                          disabled={fieldPage * CATALOG_PAGE_SIZE >= fieldTotal}
-                          onClick={() => setFieldPage((x) => x + 1)}
-                        >
-                          Next
-                        </ButtonBase>
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-                {/* ========================================================= */}
-                {/* PAGE 05: ENGINE & SESSION (CUSTOM POPOVER DROPDOWNS)      */}
-                {/* ========================================================= */}
-                {page === "settings" && (
-                  <Reveal
-                    distance={22}
-                    duration={0.5}
-                    stagger={0.05}
-                    trigger="mount"
-                    className="settings-layout"
-                  >
-                    <section className="glass-soft settings-card">
-                      <span className="eyebrow">01 · SYNTHESIS ENGINE</span>
-                      <h2>Discovery Engine Configuration</h2>
-                      <p className="section-sub">
-                        Select how candidate FastExpr formulas are synthesized
-                        when you click Generate or Auto-Mine.
-                      </p>
-                      <form onSubmit={onSettings}>
-                        <label>
-                          Primary Generation Engine
-                          <CustomSelect
-                            value={engine}
-                            onChange={setEngine}
-                            options={[
-                              {
-                                value: "algorithmic",
-                                label:
-                                  "Algorithmic Grammar Trees (Deterministic · Zero API Key)",
-                                sub: "5 institutional multi-factor templates",
-                              },
-                              {
-                                value: "cloud_ai",
-                                label:
-                                  "Cloud LLM Agent (Google Gemini / OpenAI)",
-                                sub: "Frontier AI factor synthesis",
-                              },
-                              {
-                                value: "ollama",
-                                label:
-                                  "Local Ollama Agent (Offline DeepSeek-R1 / Llama3)",
-                                sub: "Runs privately on localhost:11434",
-                              },
-                            ]}
-                          />
-                        </label>
-
-                        {engine === "cloud_ai" && (
-                          <>
-                            <label>
-                              Cloud Provider
-                              <CustomSelect
-                                value={cloudProvider}
-                                onChange={setCloudProvider}
-                                options={[
-                                  {
-                                    value: "gemini",
-                                    label: "Google Gemini (gemini-2.0-flash)",
-                                    sub: "Fastest institutional FastExpr synthesis",
-                                  },
-                                  {
-                                    value: "openai",
-                                    label: "OpenAI (gpt-4o-mini)",
-                                    sub: "OpenAI chat completions API",
-                                  },
-                                ]}
-                              />
-                            </label>
-                            <label>
-                              API Key{" "}
-                              <small>Stored only in local memory session</small>
-                              <input
-                                type="password"
-                                autoComplete="off"
-                                placeholder="Enter Gemini or OpenAI API key…"
-                                value={cloudKey}
-                                onChange={(e) => setCloudKey(e.target.value)}
-                              />
-                            </label>
-                            <ButtonBase
-                              className="full"
-                              onClick={validateKey}
-                              disabled={!cloudKey || busy === "key"}
-                            >
-                              <ShieldCheck size={15} /> Verify API Key
-                            </ButtonBase>
-                          </>
-                        )}
-
-                        {engine === "ollama" && (
-                          <>
-                            <label>
-                              Local Ollama Endpoint
-                              <input
-                                value={ollamaEndpoint}
-                                onChange={(e) =>
-                                  setOllamaEndpoint(e.target.value)
-                                }
-                              />
-                            </label>
-                            <label>
-                              Model Tag
-                              <input
-                                value={ollamaModel}
-                                onChange={(e) => setOllamaModel(e.target.value)}
-                              />
-                            </label>
-                            <ButtonBase
-                              className="full"
-                              onClick={discoverModels}
-                              disabled={busy === "models"}
-                            >
-                              <Search size={15} /> Detect Installed Models
-                            </ButtonBase>
-                          </>
-                        )}
-
-                        <ButtonBase
-                          type="submit"
-                          className="primary full"
-                          disabled={busy === "engine"}
-                        >
-                          <Check size={15} /> Save Engine Settings
-                        </ButtonBase>
-                      </form>
-                      <div className="settings-status">
-                        <Cpu size={17} />
-                        <span>
-                          Active Engine:{" "}
-                          <b>{String(summary.engine || engine).toUpperCase()}</b>
-                        </span>
-                      </div>
-                    </section>
-
-                    <section className="glass-soft settings-card">
-                      <span className="eyebrow">02 · WORLDQUANT BRAIN</span>
-                      <h2>
-                        {authenticated
-                          ? "Connected Consultant Session"
-                          : "Connect Consultant Credentials"}
-                      </h2>
-                      <p className="section-sub">
-                        Used exclusively by your local server to authenticate
-                        against `api.worldquantbrain.com`.
-                      </p>
-                      {authenticated ? (
-                        <>
-                          <div className="connected-user">
-                            <AlphaLogo size={40} />
+                        {task?.candidate && (
+                          <div className="receipt-strip">
                             <div>
-                              <strong>
-                                {user?.fullName || "Quant Researcher"}
-                              </strong>
-                              <small>
-                                {user?.level || "CONSULTANT"} · SESSION ACTIVE
-                              </small>
+                              <small>CANDIDATE ID</small>
+                              <strong>{task.candidate.id}</strong>
                             </div>
+                            <div>
+                              <small>SHARPE</small>
+                              <strong>{fmt(task.candidate.sharpe)}</strong>
+                            </div>
+                            <div>
+                              <small>FITNESS</small>
+                              <strong>{fmt(task.candidate.fitness)}</strong>
+                            </div>
+                            <div>
+                              <small>TURNOVER</small>
+                              <strong>
+                                {fmt(task.candidate.turnover_pct)}%
+                              </strong>
+                            </div>
+                            <div>
+                              <small>MARGIN</small>
+                              <strong>
+                                {fmt(task.candidate.margin_bps)} bps
+                              </strong>
+                            </div>
+                            <ButtonBase
+                              className="small primary"
+                              disabled={!task.candidate.is_submittable}
+                              onClick={() => submit(task.candidate as Alpha)}
+                            >
+                              Submit to BRAIN <ArrowRight size={13} />
+                            </ButtonBase>
                           </div>
-                          <ButtonBase
-                            className="full"
-                            onClick={() =>
-                              void action(
-                                "logout",
-                                async () => {
-                                  await post("/api/auth/logout");
-                                  setAuthenticated(false);
-                                  setUser(null);
-                                },
-                                "BRAIN session signed out",
+                        )}
+                      </section>
+                    </div>
+                  ))}
+
+                {/* ========================================================= */}
+                {/* PAGE 03: ALPHA VAULT (NO CODE LEAK ON CARDS, COMPACT ROWS)*/}
+                {/* ========================================================= */}
+                {page === "vault" &&
+                  (!authenticated ? (
+                    <AuthGateCard
+                      title="Sign in to Continue"
+                      description="Your audited alpha vault and portfolio submissions are private. Sign in with your WorldQuant BRAIN account to view your registry."
+                      buttonLabel="Sign In to View Alpha Vault"
+                      onSignIn={() => setLoginOpen(true)}
+                    />
+                  ) : (
+                    <div className="page-stack page-enter">
+                      <div className="vault-summary four-col">
+                        <MetricCard
+                          label="TOTAL AUDITED"
+                          value=""
+                          numeric={stats.total || alphas.length}
+                          sub="100% Checked"
+                          guide="All synced & simulated alphas in local DB"
+                          tone="emerald"
+                          onClick={() =>
+                            triggerVaultTransition(() => setVaultFilter("all"))
+                          }
+                        />
+                        <MetricCard
+                          label="HURDLES PASSED"
+                          value=""
+                          numeric={hurdlePassedCount}
+                          sub="Fit ≥ 1.00"
+                          guide="Passed core WorldQuant return & fitness hurdles"
+                          tone="gold"
+                          onClick={() =>
+                            triggerVaultTransition(() =>
+                              setVaultFilter("hurdles"),
+                            )
+                          }
+                        />
+                        <MetricCard
+                          label="ORTHOGONAL"
+                          value=""
+                          numeric={stats.submittable || 0}
+                          sub="Corr < 0.70"
+                          guide="Passed both metric hurdles & < 0.70 correlation"
+                          tone="ink"
+                          onClick={() =>
+                            triggerVaultTransition(() =>
+                              setVaultFilter("submittable"),
+                            )
+                          }
+                        />
+                        <MetricCard
+                          label="SUBMITTED"
+                          value=""
+                          numeric={stats.active || 0}
+                          sub="Live Portfolio"
+                          guide="Active alphas running in your BRAIN portfolio"
+                          tone="amber"
+                          onClick={() =>
+                            triggerVaultTransition(() =>
+                              setVaultFilter("submitted"),
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="vault-controls-card glass-soft">
+                        <div className="vault-controls">
+                          <div className="concentric-segmented">
+                            {[
+                              ["all", `All Alphas (${alphas.length})`],
+                              ["hurdles", `Hurdle Passed (${hurdlePassedCount})`],
+                              [
+                                "submittable",
+                                `Orthogonal < 0.70 (${stats.submittable || 0})`,
+                              ],
+                              ["submitted", `Submitted (${stats.active || 0})`],
+                            ].map(([key, label]) => (
+                              <button
+                                key={key}
+                                type="button"
+                                className={vaultFilter === key ? "selected" : ""}
+                                onClick={() =>
+                                  triggerVaultTransition(() =>
+                                    setVaultFilter(key),
+                                  )
+                                }
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="vault-controls-right">
+                            <div className="concentric-segmented">
+                              <button
+                                type="button"
+                                className={
+                                  vaultView === "table" ? "selected" : ""
+                                }
+                                onClick={() =>
+                                  triggerVaultTransition(() =>
+                                    setVaultView("table"),
+                                  )
+                                }
+                              >
+                                Table View
+                              </button>
+                              <button
+                                type="button"
+                                className={
+                                  vaultView === "bento" ? "selected" : ""
+                                }
+                                onClick={() =>
+                                  triggerVaultTransition(() =>
+                                    setVaultView("bento"),
+                                  )
+                                }
+                              >
+                                Card Grid
+                              </button>
+                            </div>
+
+                            <ButtonBase
+                              onClick={compare}
+                              disabled={compareIds.length < 2}
+                            >
+                              Compare{" "}
+                              {compareIds.length
+                                ? `(${compareIds.length})`
+                                : ""}
+                            </ButtonBase>
+
+                            <a
+                              className="button export"
+                              href="/api/export-csv"
+                              download
+                            >
+                              <ArrowDownToLine size={15} /> Export CSV
+                            </a>
+                          </div>
+                        </div>
+
+                        <div
+                          className={`vault-transition-bar ${vaultTransitioning ? "is-active" : ""}`}
+                        />
+                      </div>
+
+                      {vaultView === "bento" ? (
+                        /* CLEAN METRIC-ONLY CARDS (Zero Code Leaked, Zero Circle Dots!) */
+                        <div
+                          className={`vault-card-grid ${vaultTransitioning ? "is-transitioning" : ""}`}
+                        >
+                          {filtered.map((alpha, idx) => {
+                            const corr = alpha.max_self_correlation;
+                            const turnover =
+                              alpha.turnover_pct ?? (alpha.turnover || 0) * 100;
+                            return (
+                              <article
+                                key={alpha.id}
+                                className={`vault-concentric-card ${selected?.id === alpha.id ? "is-selected" : ""}`}
+                                style={
+                                  {
+                                    "--stagger-idx": Math.min(idx, 18),
+                                  } as React.CSSProperties
+                                }
+                                onClick={() => void openAlpha(alpha)}
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") void openAlpha(alpha);
+                                }}
+                              >
+                                <div className="vault-card-top">
+                                  <div className="vault-card-id-group">
+                                    <strong className="mono">{alpha.id}</strong>
+                                    <span
+                                      className={`quality-pill ${tierClass(alpha.tier)}`}
+                                    >
+                                      {alpha.tier || "EVALUATED"}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`status-chip ${outcomeClass(alpha)}`}
+                                  >
+                                    {statusOf(alpha)}
+                                  </span>
+                                </div>
+
+                                <div className="vault-card-divider" />
+
+                                <div className="vault-card-receipt">
+                                  <div className="receipt-cell">
+                                    <small>SHARPE</small>
+                                    <strong className="mono">
+                                      {fmt(alpha.sharpe)}
+                                    </strong>
+                                  </div>
+                                  <div className="receipt-cell">
+                                    <small>FITNESS</small>
+                                    <strong className="mono">
+                                      {fmt(alpha.fitness)}
+                                    </strong>
+                                  </div>
+                                  <div className="receipt-cell">
+                                    <small>TURNOVER</small>
+                                    <strong className="mono">
+                                      {fmt(turnover, 1)}%
+                                    </strong>
+                                  </div>
+                                  <div className="receipt-cell">
+                                    <small>SELF-CORR</small>
+                                    <strong
+                                      className={`mono corr-val ${corrColorClass(corr)}`}
+                                    >
+                                      {corr !== undefined && corr !== null
+                                        ? fmt(corr)
+                                        : "—"}
+                                    </strong>
+                                  </div>
+                                </div>
+
+                                <div className="personal-card-actions">
+                                  <button
+                                    type="button"
+                                    className="table-action-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void cloneToFactory(alpha);
+                                    }}
+                                  >
+                                    <FlaskConical size={12} />
+                                    <span>Clone into Studio</span>
+                                  </button>
+                                  <span className="personal-scope-note mono">
+                                    {alpha.region || "USA"} ·{" "}
+                                    {alpha.universe || "TOP3000"} · D
+                                    {alpha.delay ?? 1}
+                                  </span>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div
+                          className={
+                            vaultTransitioning ? "vault-fade-transition" : ""
+                          }
+                        >
+                          <AlphaTable
+                            rows={filtered}
+                            selectedId={selected?.id}
+                            onSelect={openAlpha}
+                            onClone={cloneToFactory}
+                            onSubmit={submit}
+                            search={search}
+                            setSearch={setSearch}
+                            title={`Audited Alpha Registry (${filtered.length} Signals)`}
+                            subtitle="Compact 40px rows, right-aligned tabular figures, and zero formula leaks. Click Clone to open code in Studio."
+                            empty="No alphas match this filter."
+                            fullHeight
+                            compareIds={compareIds}
+                            onCompareToggle={(id) =>
+                              setCompareIds((x) =>
+                                x.includes(id)
+                                  ? x.filter((v) => v !== id)
+                                  : [...x, id],
                               )
                             }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                {/* ========================================================= */}
+                {/* PAGE 04: DATA CATALOG                                     */}
+                {/* ========================================================= */}
+                {page === "catalog" &&
+                  (!authenticated ? (
+                    <AuthGateCard
+                      title="Sign in to Continue"
+                      description="Sign in with your WorldQuant BRAIN credentials to browse and insert from the 4,367 equity data fields catalog."
+                      buttonLabel="Sign In to View Data Catalog"
+                      onSignIn={() => setLoginOpen(true)}
+                    />
+                  ) : (
+                    <section className="catalog-card glass-soft full-viewport-catalog page-enter">
+                      <div className="catalog-controls">
+                        <label className="search-box no-cursor-lock">
+                          <Search size={16} />
+                          <input
+                            className="no-cursor-lock"
+                            placeholder="Search 4,367 equity data fields by ID or description…"
+                            value={fieldSearch}
+                            onChange={(e) => {
+                              setFieldSearch(e.target.value);
+                              setFieldPage(1);
+                            }}
+                          />
+                        </label>
+                        <CustomSelect
+                          className="catalog-select"
+                          value={fieldDataset}
+                          onChange={(val) => {
+                            setFieldDataset(val);
+                            setFieldPage(1);
+                          }}
+                          options={[
+                            {
+                              value: "",
+                              label: "All 14 Datasets",
+                              sub: "4,367 total equity fields",
+                            },
+                            ...datasets.map((d) => ({
+                              value: d.id,
+                              label: `${d.name} (${d.fields_count})`,
+                              sub: `Dataset ID: ${d.id}`,
+                            })),
+                          ]}
+                        />
+                        <span className="catalog-count">
+                          {NUMBER.format(fieldTotal)} FIELDS
+                        </span>
+                      </div>
+
+                      <div className="table-wrap catalog-table-wrap density-compact">
+                        <table className="catalog-table">
+                          <thead>
+                            <tr>
+                              <th className="col-field-id">FIELD ID</th>
+                              <th className="col-field-desc">DESCRIPTION</th>
+                              <th className="col-field-ds">DATASET</th>
+                              <th className="col-field-type">TYPE</th>
+                              <th className="col-field-action">INSERT</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {fields.map((f) => (
+                              <tr key={f.id}>
+                                <td className="col-field-id alpha-cell">
+                                  {f.id}
+                                </td>
+                                <td
+                                  className="col-field-desc"
+                                  title={f.description}
+                                >
+                                  {f.description ||
+                                    "Institutional equity metric"}
+                                </td>
+                                <td className="col-field-ds">
+                                  <span className="dataset-tag">
+                                    {f.dataset_id}
+                                  </span>
+                                </td>
+                                <td className="col-field-type mono">
+                                  {f.type}
+                                </td>
+                                <td className="col-field-action">
+                                  <button
+                                    className="table-action-btn"
+                                    onClick={() => {
+                                      setExpression((x) => `${x}\n${f.id}`);
+                                      switchPage("factory");
+                                      notify(
+                                        "DATA FIELD INSERTED",
+                                        `Inserted '${f.id}' (${f.dataset_id}) into Alpha Studio.`,
+                                      );
+                                    }}
+                                  >
+                                    <span>Insert</span>
+                                    <ArrowRight size={13} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {!fields.length && (
+                          <div className="table-empty">
+                            <Database size={20} />
+                            <span>No data fields match your query.</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pagination">
+                        <span className="pagination-info">
+                          SHOWING {(fieldPage - 1) * CATALOG_PAGE_SIZE + 1}–
+                          {Math.min(fieldPage * CATALOG_PAGE_SIZE, fieldTotal)}{" "}
+                          OF {NUMBER.format(fieldTotal)}
+                        </span>
+                        <div className="pagination-buttons">
+                          <ButtonBase
+                            className="small"
+                            disabled={fieldPage <= 1}
+                            onClick={() =>
+                              setFieldPage((p) => Math.max(1, p - 1))
+                            }
                           >
-                            <LogOut size={15} /> Sign Out of Session
+                            Previous
                           </ButtonBase>
-                        </>
-                      ) : (
-                        <form onSubmit={onLogin}>
+                          <span>
+                            PAGE {fieldPage} /{" "}
+                            {Math.max(
+                              1,
+                              Math.ceil(fieldTotal / CATALOG_PAGE_SIZE),
+                            )}
+                          </span>
+                          <ButtonBase
+                            className="small"
+                            disabled={
+                              fieldPage * CATALOG_PAGE_SIZE >= fieldTotal
+                            }
+                            onClick={() => setFieldPage((p) => p + 1)}
+                          >
+                            Next
+                          </ButtonBase>
+                        </div>
+                      </div>
+                    </section>
+                  ))}
+
+                {/* ========================================================= */}
+                {/* PAGE 05: ENGINE & SESSION SETTINGS                        */}
+                {/* ========================================================= */}
+                {page === "settings" &&
+                  (!authenticated ? (
+                    <AuthGateCard
+                      title="Sign in to Continue"
+                      description="Sign in with your WorldQuant BRAIN account to configure synthesis engines and manage your active session."
+                      buttonLabel="Sign In to Configure Engine & Session"
+                      onSignIn={() => setLoginOpen(true)}
+                    />
+                  ) : (
+                    <div className="settings-grid page-enter">
+                      <section className="glass-soft settings-card">
+                        <span className="eyebrow">01 · SYNTHESIS ENGINE</span>
+                        <h2>AI &amp; Algorithmic Configuration</h2>
+                        <p className="section-sub">
+                          Choose how candidate FastExpr expressions are
+                          generated. Keys remain in your local session.
+                        </p>
+                        <form onSubmit={onSettings}>
                           <label>
-                            WorldQuant BRAIN Email
-                            <input
-                              type="email"
-                              autoComplete="username"
-                              placeholder="consultant@worldquantbrain.com"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              required
+                            Discovery Engine Mode
+                            <CustomSelect
+                              value={engine}
+                              onChange={setEngine}
+                              options={[
+                                {
+                                  value: "algorithmic",
+                                  label: "Algorithmic Grammar Tree",
+                                  sub: "Deterministic multi-factor AST",
+                                },
+                                {
+                                  value: "cloud_ai",
+                                  label: "Cloud AI (Gemini / OpenAI)",
+                                  sub: "LLM-driven factor generation",
+                                },
+                                {
+                                  value: "ollama",
+                                  label: "Local Ollama (DeepSeek R1)",
+                                  sub: "Local private model inference",
+                                },
+                              ]}
                             />
                           </label>
-                          <label>
-                            Password
-                            <input
-                              type="password"
-                              autoComplete="current-password"
-                              placeholder="••••••••••••"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              required
-                            />
-                          </label>
+                          {engine === "cloud_ai" && (
+                            <>
+                              <label>
+                                Cloud Provider
+                                <CustomSelect
+                                  value={cloudProvider}
+                                  onChange={setCloudProvider}
+                                  options={[
+                                    {
+                                      value: "gemini",
+                                      label: "Google Gemini 2.0 Flash",
+                                      sub: "Fast quantitative reasoning",
+                                    },
+                                    {
+                                      value: "openai",
+                                      label: "OpenAI GPT-4o",
+                                      sub: "Structured factor synthesis",
+                                    },
+                                  ]}
+                                />
+                              </label>
+                              <label>
+                                Provider API Key
+                                <input
+                                  type="password"
+                                  placeholder="AIza… or sk-…"
+                                  value={cloudKey}
+                                  onChange={(e) => setCloudKey(e.target.value)}
+                                />
+                              </label>
+                              <ButtonBase
+                                onClick={validateKey}
+                                busy={busy === "key"}
+                                busyLabel="Validating Key…"
+                                done={doneAction === "key"}
+                              >
+                                <ShieldCheck size={15} /> Validate Cloud Key
+                              </ButtonBase>
+                            </>
+                          )}
+                          {engine === "ollama" && (
+                            <>
+                              <label>
+                                Ollama Endpoint
+                                <input
+                                  value={ollamaEndpoint}
+                                  onChange={(e) =>
+                                    setOllamaEndpoint(e.target.value)
+                                  }
+                                />
+                              </label>
+                              <label>
+                                Model Tag
+                                <input
+                                  value={ollamaModel}
+                                  onChange={(e) =>
+                                    setOllamaModel(e.target.value)
+                                  }
+                                />
+                              </label>
+                              <ButtonBase
+                                onClick={discoverModels}
+                                busy={busy === "models"}
+                                busyLabel="Scanning Ollama…"
+                                done={doneAction === "models"}
+                              >
+                                <Cpu size={15} /> Discover Local Models
+                              </ButtonBase>
+                            </>
+                          )}
                           <ButtonBase
                             type="submit"
                             className="primary full"
-                            disabled={busy === "login"}
+                            busy={busy === "engine"}
+                            busyLabel="Saving Engine…"
+                            done={doneAction === "engine"}
                           >
-                            <LockKeyhole size={15} />{" "}
-                            {busy === "login"
-                              ? "Authenticating…"
-                              : "Authenticate Session"}
+                            <Check size={15} /> Save Engine Settings
                           </ButtonBase>
                         </form>
-                      )}
-                      <div className="settings-status">
-                        <Radar size={17} />
-                        <span>
-                          Background Correlation Auditor:{" "}
-                          <b>{worker.is_running ? "RUNNING" : "STANDBY"}</b>
-                        </span>
-                      </div>
-                      <ButtonBase
-                        className="full"
-                        onClick={() =>
-                          void action(
-                            "audit",
-                            () => post("/api/correlation-worker/start"),
-                            "Background correlation audit triggered",
-                          )
-                        }
-                        disabled={!authenticated}
-                      >
-                        <RefreshCw size={15} /> Run Portfolio Correlation Audit
-                      </ButtonBase>
-                    </section>
-                  </Reveal>
+                        <div className="settings-status">
+                          <Cpu size={17} />
+                          <span>
+                            Active Engine:{" "}
+                            <b>
+                              {String(summary.engine || engine).toUpperCase()}
+                            </b>
+                          </span>
+                        </div>
+                      </section>
+
+                      <section className="glass-soft settings-card">
+                        <span className="eyebrow">02 · WORLDQUANT BRAIN</span>
+                        <h2>Connected Session</h2>
+                        <p className="section-sub">
+                          Authenticated against `api.worldquantbrain.com`.
+                        </p>
+                        <div className="connected-user">
+                          <AlphaLogo size={40} />
+                          <div>
+                            <strong>
+                              {user?.fullName || "Authenticated User"}
+                            </strong>
+                            <small>
+                              {user?.level || "BRONZE"} LEVEL · SESSION ACTIVE
+                            </small>
+                          </div>
+                        </div>
+                        <ButtonBase
+                          className="full"
+                          busy={busy === "logout"}
+                          busyLabel="Signing Out…"
+                          onClick={() =>
+                            void action(
+                              "logout",
+                              async () => {
+                                await post("/api/auth/logout");
+                                setAuthenticated(false);
+                                setUser(null);
+                                setAlphas([]);
+                                setStats({});
+                                setSelected(null);
+                                setShowcase(null);
+                              },
+                              "SESSION SIGNED OUT",
+                              "Disconnected from WorldQuant BRAIN.",
+                            )
+                          }
+                        >
+                          <LogOut size={15} /> Sign Out of Session
+                        </ButtonBase>
+                        <div className="settings-status">
+                          <Radar size={17} />
+                          <span>
+                            Background Correlation Auditor:{" "}
+                            <b>{worker.is_running ? "RUNNING" : "STANDBY"}</b>
+                          </span>
+                        </div>
+                        <ButtonBase
+                          className="full"
+                          busy={busy === "audit"}
+                          busyLabel="Starting Auditor…"
+                          done={doneAction === "audit"}
+                          onClick={() =>
+                            void action(
+                              "audit",
+                              () => post("/api/correlation-worker/start"),
+                              "CORRELATION AUDITOR ACTIVE",
+                              "Background self-correlation worker is auditing unsubmitted candidates.",
+                            )
+                          }
+                        >
+                          <RefreshCw size={15} /> Run Portfolio Correlation
+                          Audit
+                        </ButtonBase>
+                      </section>
+                    </div>
+                  ))}
+
+                {/* ========================================================= */}
+                {/* PAGE 06: RESEARCH PROTOCOL + ASHWIN & AKSHAT PROFILES     */}
+                {/* ========================================================= */}
+                {page === "terms" && (
+                  <div className="page-enter">
+                    <TermsPanel />
+                  </div>
                 )}
 
                 {/* ========================================================= */}
-                {/* PAGE 06: RESEARCH PROTOCOL + AKSHAT & ASHWIN PROFILES     */}
+                {/* PAGE 07: PERSONAL DASHBOARD (LOCKED WHEN SIGNED OUT!)     */}
                 {/* ========================================================= */}
-                {page === "terms" && (
-                  <Reveal
-                    distance={22}
-                    duration={0.5}
-                    stagger={0.05}
-                    trigger="mount"
-                  >
-                    <TermsPanel />
-                  </Reveal>
-                )}
+                {page === "personal" &&
+                  (!authenticated ? (
+                    <AuthGateCard
+                      title="Sign in to View the Dashboard"
+                      description="Your personal WorldQuant BRAIN level, audited alpha count, and submitted portfolio are private. Sign in to view your dashboard."
+                      buttonLabel="Sign In to View the Dashboard"
+                      onSignIn={() => setLoginOpen(true)}
+                    />
+                  ) : (
+                    <div className="page-stack page-enter">
+                      <PersonalDashboard
+                        showcase={showcase}
+                        user={user}
+                        alphas={alphas}
+                        busy={busy === "sync"}
+                        onSync={() =>
+                          void action(
+                            "sync",
+                            () => post("/api/sync-cloud"),
+                            "PORTFOLIO SYNCED",
+                            "Pulled latest submissions and telemetry from WorldQuant BRAIN.",
+                          )
+                        }
+                        onInspect={(a) => void openAlpha(a)}
+                        onClone={(a) => void cloneToFactory(a)}
+                        onOpenStudio={() => switchPage("factory")}
+                      />
+                    </div>
+                  ))}
 
                 {/* ========================================================= */}
                 {/* PAGE 404: ANOMALY SCREEN                                  */}
                 {/* ========================================================= */}
                 {page === "notfound" && (
-                  <div className="anomaly-view">
+                  <div className="anomaly-view page-enter">
                     <AsciiCanvas
                       className="hero-ascii-bg"
                       colors={["#0A1410", "#133829", "#E85D2A", "#C5A875"]}
@@ -2801,9 +3487,11 @@ export default function App() {
                     <div>
                       <strong>ALPHA INSPECTOR</strong>
                       <small>
-                        {selected
-                          ? `${selected.id} · Sharpe ${fmt(selected.sharpe)}`
-                          : "Select an alpha to inspect"}
+                        {!authenticated
+                          ? "Sign in to continue"
+                          : selected
+                            ? `${selected.id} · Sharpe ${fmt(selected.sharpe)}`
+                            : "Select an alpha to inspect"}
                       </small>
                     </div>
                   </div>
@@ -2811,7 +3499,11 @@ export default function App() {
                     <span
                       className={`tier-badge ${tierClass(selected?.tier)}`}
                     >
-                      {selected ? selected.tier || "EVALUATED" : "STANDBY"}
+                      {!authenticated
+                        ? "LOCKED"
+                        : selected
+                          ? selected.tier || "EVALUATED"
+                          : "STANDBY"}
                     </span>
                     <ChevronDown
                       size={16}
@@ -2821,15 +3513,24 @@ export default function App() {
                 </button>
 
                 {inspectorSection === "inspector" && (
-                  <div className="accordion-body dark-body">
-                    {selected ? (
+                  <div className="accordion-body dark-body accordion-slide-in">
+                    {!authenticated ? (
+                      <div className="inspector-empty">
+                        <LockKeyhole size={24} />
+                        <p>Sign in to continue and inspect alpha telemetry.</p>
+                        <ButtonBase
+                          className="primary small"
+                          onClick={() => setLoginOpen(true)}
+                        >
+                          Sign In to Continue
+                        </ButtonBase>
+                      </div>
+                    ) : selected ? (
                       <>
-                        <div className="inspector-id-row">
+                        <div className="selected-head stagger-item">
                           <div>
-                            <small className="inspector-kicker">
-                              SELECTED CANDIDATE
-                            </small>
-                            <div className="alpha-id">{selected.id}</div>
+                            <small>SELECTED CANDIDATE</small>
+                            <strong>{selected.id}</strong>
                           </div>
                           <span
                             className={`status-chip ${outcomeClass(selected)}`}
@@ -2838,7 +3539,7 @@ export default function App() {
                           </span>
                         </div>
 
-                        <div className="telemetry-grid">
+                        <div className="telemetry-grid stagger-item">
                           <div>
                             <small>SHARPE RATIO</small>
                             <strong>{fmt(selected.sharpe)}</strong>
@@ -2859,24 +3560,28 @@ export default function App() {
                           </div>
                           <div>
                             <small>SELF-CORR</small>
-                            <strong>
+                            <strong
+                              className={corrColorClass(
+                                selected.max_self_correlation,
+                              )}
+                            >
                               {fmt(selected.max_self_correlation)}
                             </strong>
                           </div>
                         </div>
 
-                        <div className="hurdle-bars">
+                        <div className="hurdle-bars stagger-item">
                           <div className="hurdle-bars-head">
                             <span>HURDLE STANDING</span>
                             <span>THRESHOLD</span>
                           </div>
                           {hurdleBars(selected).map((bar) => (
                             <div className="hurdle-bar-row" key={bar.label}>
-                              <div className="hurdle-bar-meta">
+                              <div className="hurdle-bar-labels">
                                 <span>{bar.label}</span>
-                                <strong>
-                                  {bar.val} <em>({bar.target})</em>
-                                </strong>
+                                <b>
+                                  {bar.val} <small>({bar.target})</small>
+                                </b>
                               </div>
                               <div className="hurdle-bar-track">
                                 <i
@@ -2888,71 +3593,45 @@ export default function App() {
                           ))}
                         </div>
 
-                        <div className="inspector-code-block">
-                          <div className="inspector-code-head">
-                            <span>FASTEXPR FORMULA</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void navigator.clipboard.writeText(
-                                  selected.expression || "",
-                                );
-                                setNotice(
-                                  "FastExpr formula copied to clipboard.",
-                                );
-                              }}
-                            >
-                              <Copy size={12} /> Copy
-                            </button>
-                          </div>
-                          <pre className="inspector-expr selectable-code">
-                            {selected.expression ||
-                              "Click Check Corr or Sync Portfolio to load expression."}
-                          </pre>
-                        </div>
-
-                        <div className="cartridge-actions">
+                        <div className="inspector-actions stagger-item">
                           <ButtonBase
-                            className="small"
-                            onClick={() => cloneToFactory(selected)}
+                            onClick={() => void cloneToFactory(selected)}
                           >
-                            <FlaskConical size={13} /> Clone to Studio
+                            <FlaskConical size={14} /> Clone to Studio
                           </ButtonBase>
                           <ButtonBase
-                            className="small"
                             onClick={() => checkCorrelation(selected)}
-                            disabled={busy === "correlation"}
+                            busy={busy === "correlation"}
+                            busyLabel="Checking…"
                           >
-                            <Radar size={13} /> Check Corr
+                            <Radar size={14} /> Check Corr
                           </ButtonBase>
                           <ButtonBase
-                            className="small primary full-span"
+                            className="primary full"
                             disabled={
                               !selected.is_submittable ||
                               selected.submission_status === "SUBMITTED"
                             }
                             onClick={() => submit(selected)}
                           >
-                            <span>
-                              {selected.submission_status === "SUBMITTED"
-                                ? "Submitted on BRAIN"
-                                : "Submit Alpha to BRAIN"}
-                            </span>
-                            <ArrowRight size={13} />
+                            {selected.submission_status === "SUBMITTED"
+                              ? "Submitted on BRAIN"
+                              : "Submit Alpha to BRAIN"}
+                            <ArrowRight size={14} />
                           </ButtonBase>
                         </div>
                       </>
                     ) : (
-                      <p className="inspector-empty">
-                        Select any Alpha in the table to inspect its metrics,
-                        formula, and hurdle verification here.
-                      </p>
+                      <div className="inspector-empty">
+                        <Compass size={26} />
+                        <p>Click any alpha row to inspect its metrics.</p>
+                      </div>
                     )}
                   </div>
                 )}
               </section>
 
-              {/* ACCORDION 02: PLATFORM CHECKS */}
+              {/* ACCORDION 02: PLATFORM CHECKS (Smooth AnimatedList Slide-In + No Overlap!) */}
               <section
                 className={`accordion-panel glass-soft ${inspectorSection === "checks" ? "is-expanded" : "is-collapsed"}`}
               >
@@ -2967,15 +3646,19 @@ export default function App() {
                     <div>
                       <strong>PLATFORM CHECKS</strong>
                       <small>
-                        {selected
-                          ? `Verification matrix for ${selected.id}`
-                          : "WorldQuant BRAIN hurdle audit"}
+                        {!authenticated
+                          ? "Sign in to continue"
+                          : selected
+                            ? `Matrix · ${selected.id}`
+                            : "7-Hurdle verification"}
                       </small>
                     </div>
                   </div>
                   <div className="accordion-right">
                     <span className="tiny-pill">
-                      {passedChecksCount}/{checksList.length} PASS
+                      {!authenticated
+                        ? "LOCKED"
+                        : `${passedChecksCount}/${checksList.length} PASS`}
                     </span>
                     <ChevronDown
                       size={16}
@@ -2985,50 +3668,56 @@ export default function App() {
                 </button>
 
                 {inspectorSection === "checks" && (
-                  <div className="accordion-body light-body">
-                    <div className="checks-meta-strip">
-                      <span>
-                        SELF-CORRELATION:{" "}
-                        <b>
-                          {selected?.max_self_correlation !== undefined &&
-                          selected?.max_self_correlation !== null
-                            ? fmt(selected.max_self_correlation)
-                            : "< 0.70"}
-                        </b>
-                      </span>
-                      <span>
-                        CEILING: <b>&lt; 0.70</b>
-                      </span>
-                    </div>
-                    <div className="inspector-checks">
-                      {checksList.map((check, index) => {
-                        const resStr = String(
-                          check.result || "PENDING",
-                        ).toUpperCase();
-                        const isPass = resStr.includes("PASS");
-                        const isWarn = resStr.includes("WARN");
-                        return (
-                          <div
-                            className="check-row"
-                            key={`${check.name || "check"}-${index}`}
-                          >
-                            <span className="check-name">
-                              {String(check.name || "HURDLE").replace(
+                  <div className="accordion-body light-body accordion-slide-in">
+                    {!authenticated ? (
+                      <div className="feed-empty">
+                        Sign in to continue and view platform hurdle checks.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="corr-summary-box stagger-item">
+                          <span>
+                            SELF-CORR:{" "}
+                            <b
+                              className={corrColorClass(
+                                selected?.max_self_correlation,
+                              )}
+                            >
+                              {selected?.max_self_correlation !== undefined &&
+                              selected?.max_self_correlation !== null
+                                ? fmt(selected.max_self_correlation)
+                                : "< 0.70 (PASS)"}
+                            </b>
+                          </span>
+                          <span>
+                            CEILING: <b>&lt; 0.70</b>
+                          </span>
+                        </div>
+                        <ActivityList
+                          items={checksList.map((check, index) => {
+                            const resStr = String(
+                              check.result || "PENDING",
+                            ).toUpperCase();
+                            return {
+                              id: `${selected?.id || "chk"}-${index}`,
+                              title: String(check.name || "HURDLE").replace(
                                 /_/g,
                                 " ",
-                              )}
-                            </span>
-                            <b
-                              className={
-                                isPass ? "pass" : isWarn ? "warn" : "fail"
-                              }
-                            >
-                              {resStr}
-                            </b>
-                          </div>
-                        );
-                      })}
-                    </div>
+                              ),
+                              description: `Standing: ${resStr}`,
+                              meta: resStr,
+                              icon: <ShieldCheck size={14} />,
+                            };
+                          })}
+                          theme="light"
+                          frame={false}
+                          width="100%"
+                          maxHeight={420}
+                          showGradients={false}
+                          animation="slide"
+                        />
+                      </>
+                    )}
                   </div>
                 )}
               </section>
@@ -3047,11 +3736,17 @@ export default function App() {
                     <span className="accordion-idx">03</span>
                     <div>
                       <strong>RECENT EVENTS</strong>
-                      <small>Live simulation &amp; audit stream</small>
+                      <small>
+                        {!authenticated
+                          ? "Sign in to continue"
+                          : "Live simulation & audit stream"}
+                      </small>
                     </div>
                   </div>
                   <div className="accordion-right">
-                    <span className="tiny-pill">{activity.length} LOGS</span>
+                    <span className="tiny-pill">
+                      {!authenticated ? "LOCKED" : `${activity.length} LOGS`}
+                    </span>
                     <ChevronDown
                       size={16}
                       className={`accordion-chevron ${inspectorSection === "events" ? "open" : ""}`}
@@ -3060,8 +3755,12 @@ export default function App() {
                 </button>
 
                 {inspectorSection === "events" && (
-                  <div className="accordion-body light-body">
-                    {activity.length ? (
+                  <div className="accordion-body light-body accordion-slide-in">
+                    {!authenticated ? (
+                      <div className="feed-empty">
+                        Sign in to continue and view recent session events.
+                      </div>
+                    ) : activity.length ? (
                       <ActivityList
                         items={activity.map((item) => ({
                           ...item,
@@ -3087,109 +3786,32 @@ export default function App() {
         </div>
       </div>
 
-      {/* COMMAND PALETTE & GLOBAL SEARCH (⌘K) */}
-      {palette && (
-        <div className="palette-backdrop" onClick={() => setPalette(false)}>
-          <div
-            className="palette"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Global Search"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <label className="no-cursor-lock">
-              <Search size={18} />
-              <input
-                autoFocus
-                className="no-cursor-lock"
-                placeholder="Search pages, alphas, FastExpr operators, or 4,367 data fields…"
-                value={paletteQuery}
-                onChange={(e) => setPaletteQuery(e.target.value)}
-              />
-              <kbd>ESC</kbd>
-            </label>
-            <div className="palette-results">
-              {NAV_ITEMS.filter((n) =>
-                `${n.label} ${n.hint}`
-                  .toLowerCase()
-                  .includes(paletteQuery.toLowerCase()),
-              ).map((n) => (
-                <button key={n.page} onClick={() => switchPage(n.page)}>
-                  <n.icon size={16} />
-                  <span>{n.label}</span>
-                  <small>{n.hint}</small>
-                  <ArrowRight size={14} />
-                </button>
-              ))}
-
-              {alphas
-                .filter((a) =>
-                  `${a.id} ${a.expression || ""}`
-                    .toLowerCase()
-                    .includes(paletteQuery.toLowerCase()),
-                )
-                .slice(0, paletteQuery.trim() ? 6 : 3)
-                .map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => {
-                      void openAlpha(a);
-                      switchPage("vault");
-                    }}
-                  >
-                    <Radar size={16} />
-                    <span>Alpha {a.id}</span>
-                    <small>
-                      Sharpe {fmt(a.sharpe)} · Fitness {fmt(a.fitness)}
-                    </small>
-                    <ArrowRight size={14} />
-                  </button>
-                ))}
-
-              {paletteFields.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => {
-                    setExpression((x) => `${x}\n${f.id}`);
-                    switchPage("factory");
-                    setNotice(`Inserted field '${f.id}' into Alpha Studio.`);
-                  }}
-                >
-                  <Database size={16} />
-                  <span>Field: {f.id}</span>
-                  <small>{f.dataset_id}</small>
-                  <ArrowRight size={14} />
-                </button>
-              ))}
-
-              {OPERATOR_GUIDES.filter((op) =>
-                `${op.label} ${op.guide}`
-                  .toLowerCase()
-                  .includes(paletteQuery.toLowerCase()),
-              )
-                .slice(0, 4)
-                .map((op) => (
-                  <button
-                    key={op.snippet}
-                    onClick={() => {
-                      setExpression((x) => `${x}${op.snippet}`);
-                      switchPage("factory");
-                    }}
-                  >
-                    <Terminal size={16} />
-                    <span>Insert {op.label}</span>
-                    <small>{op.guide}</small>
-                    <ArrowRight size={14} />
-                  </button>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* RAYCAST-STYLE INSTANT COMMAND PALETTE (⌘K) */}
+      <CommandPalette
+        open={palette}
+        query={paletteQuery}
+        loadingFields={paletteLoading}
+        onQueryChange={setPaletteQuery}
+        onClose={() => setPalette(false)}
+        items={paletteItems}
+        onCopy={(text, label) => {
+          void navigator.clipboard?.writeText(text);
+          notify("COPIED TO CLIPBOARD", `Copied ${label} to clipboard.`);
+        }}
+        onLoadInStudio={(expr, name) => {
+          setExpression(expr);
+          if (name) setAlphaName(name);
+          switchPage("factory");
+          notify(
+            "LOADED IN ALPHA STUDIO",
+            `Loaded ${name || "expression"} into FastExpr editor.`,
+          );
+        }}
+      />
 
       {/* HEAD-TO-HEAD ALPHA COMPARISON MODAL */}
       {comparison.length > 0 && (
-        <div className="palette-backdrop" onClick={() => setComparison([])}>
+        <div className="raycast-backdrop" onClick={() => setComparison([])}>
           <div
             className="compare-dialog"
             role="dialog"
@@ -3203,6 +3825,7 @@ export default function App() {
                 <h2>Signal Comparison</h2>
               </div>
               <button
+                type="button"
                 onClick={() => setComparison([])}
                 aria-label="Close"
                 className="modal-close-inline"
@@ -3224,7 +3847,10 @@ export default function App() {
                     TURNOVER <b>{fmt(a.turnover_pct)}%</b>
                   </span>
                   <span>
-                    SELF-CORR <b>{fmt(a.max_self_correlation)}</b>
+                    SELF-CORR{" "}
+                    <b className={corrColorClass(a.max_self_correlation)}>
+                      {fmt(a.max_self_correlation)}
+                    </b>
                   </span>
                   <span>
                     STATUS <b>{statusOf(a)}</b>
@@ -3242,10 +3868,14 @@ export default function App() {
           email={email}
           password={password}
           busy={busy === "login"}
+          error={loginError}
           onEmail={setEmail}
           onPassword={setPassword}
           onSubmit={onLogin}
-          onClose={() => setLoginOpen(false)}
+          onClose={() => {
+            setLoginOpen(false);
+            setLoginError("");
+          }}
         />
       )}
     </div>
@@ -3314,7 +3944,10 @@ function SignalFrontierChart({
       <div className="frontier-rows">
         {topSignals.map((alpha) => {
           const fit = alpha.fitness || 0;
-          const pct = Math.max(10, Math.min(100, Math.round((fit / 3.0) * 100)));
+          const pct = Math.max(
+            10,
+            Math.min(100, Math.round((fit / 3.0) * 100)),
+          );
           return (
             <div
               key={alpha.id}
@@ -3351,10 +3984,14 @@ function SignalFrontierChart({
   );
 }
 
+/**
+ * AlphaTable — Fixed Compact 40px Rows, Zero Formula Code Leaked, Right-Aligned Tabular Figures
+ */
 function AlphaTable({
   rows,
   selectedId,
   onSelect,
+  onClone,
   onSubmit,
   search,
   setSearch,
@@ -3368,6 +4005,7 @@ function AlphaTable({
   rows: Alpha[];
   selectedId?: string;
   onSelect: (a: Alpha) => void;
+  onClone: (a: Alpha) => void;
   onSubmit: (a: Alpha) => void;
   search: string;
   setSearch: (s: string) => void;
@@ -3386,38 +4024,42 @@ function AlphaTable({
           <h2>{title}</h2>
           {subtitle && <p className="section-sub">{subtitle}</p>}
         </div>
-        <label className="search-box no-cursor-lock">
-          <Search size={15} />
-          <input
-            className="no-cursor-lock"
-            aria-label="Filter alphas by ID or formula"
-            placeholder="Filter by Alpha ID or formula…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
+        <div className="table-head-controls">
+          <label className="search-box no-cursor-lock">
+            <Search size={15} />
+            <input
+              className="no-cursor-lock"
+              aria-label="Filter alphas by ID or quality"
+              placeholder="Filter by Alpha ID or quality…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+        </div>
       </div>
-      <div className={`table-wrap ${fullHeight ? "vault-full-scroll" : ""}`}>
+
+      <div
+        className={`table-wrap density-compact ${fullHeight ? "vault-full-scroll" : ""}`}
+      >
         <table className="alpha-registry-table">
           <thead>
             <tr>
               {onCompareToggle && <th className="col-check">CMP</th>}
-              <th className="col-id">ALPHA ID</th>
-              <th className="col-expr">FORMULA PREVIEW</th>
+              <th className="col-id pinned-col">ALPHA ID</th>
               <th className="col-tier">QUALITY</th>
-              <th className="col-num">SHARPE</th>
-              <th className="col-num">FITNESS</th>
-              <th className="col-num">TURNOVER</th>
-              <th className="col-num">SELF-CORR</th>
+              <th className="col-scope">SCOPE</th>
+              <th className="col-num num-right">SHARPE</th>
+              <th className="col-num num-right">FITNESS</th>
+              <th className="col-num num-right">TURNOVER</th>
+              <th className="col-num num-right">SELF-CORR</th>
               <th className="col-status">STATUS</th>
-              <th className="col-action">ACTION</th>
+              <th className="col-action num-right">STUDIO</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((a) => {
               const corr = a.max_self_correlation;
-              const corrPass =
-                corr === undefined || corr === null || corr < 0.7;
+              const turnover = a.turnover_pct ?? (a.turnover || 0) * 100;
               return (
                 <tr
                   key={a.id}
@@ -3441,26 +4083,21 @@ function AlphaTable({
                       />
                     </td>
                   )}
-                  <td className="col-id alpha-cell">{a.id}</td>
-                  <td className="col-expr mono">
-                    <span className="expr-truncate">
-                      {a.expression || "Simulated factor candidate"}
-                    </span>
-                  </td>
+                  <td className="col-id alpha-cell pinned-col">{a.id}</td>
                   <td className="col-tier">
                     <span className={`quality-pill ${tierClass(a.tier)}`}>
-                      {a.tier || "DRAFT"}
+                      {a.tier || "EVALUATED"}
                     </span>
                   </td>
-                  <td className="col-num mono">{fmt(a.sharpe)}</td>
-                  <td className="col-num mono">{fmt(a.fitness)}</td>
-                  <td className="col-num mono">
-                    {fmt(a.turnover_pct ?? (a.turnover || 0) * 100)}%
+                  <td className="col-scope mono">
+                    {a.region || "USA"} · {a.universe || "TOP3000"} · D
+                    {a.delay ?? 1}
                   </td>
-                  <td className="col-num mono">
-                    <span
-                      className={`corr-val ${corrPass ? "corr-pass" : "corr-high"}`}
-                    >
+                  <td className="col-num num-right mono">{fmt(a.sharpe)}</td>
+                  <td className="col-num num-right mono">{fmt(a.fitness)}</td>
+                  <td className="col-num num-right mono">{fmt(turnover)}%</td>
+                  <td className="col-num num-right mono">
+                    <span className={`corr-val ${corrColorClass(corr)}`}>
                       {corr !== undefined && corr !== null ? fmt(corr) : "—"}
                     </span>
                   </td>
@@ -3469,20 +4106,21 @@ function AlphaTable({
                       {statusOf(a)}
                     </span>
                   </td>
-                  <td className="col-action">
+                  <td className="col-action num-right">
                     <button
-                      className={`table-action-btn ${a.is_submittable && a.submission_status !== "SUBMITTED" ? "is-ready" : ""}`}
+                      type="button"
+                      className={`table-action-btn row-hover-action ${a.is_submittable && a.submission_status !== "SUBMITTED" ? "is-ready" : ""}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         a.is_submittable && a.submission_status !== "SUBMITTED"
                           ? onSubmit(a)
-                          : onSelect(a);
+                          : onClone(a);
                       }}
                     >
                       <span>
                         {a.is_submittable && a.submission_status !== "SUBMITTED"
                           ? "Submit"
-                          : "Inspect"}
+                          : "Clone"}
                       </span>
                       <ArrowRight size={13} />
                     </button>
@@ -3503,22 +4141,361 @@ function AlphaTable({
   );
 }
 
+/**
+ * Page 07: Personal Dashboard (Only visible when signed in, BRONZE level badge,
+ * zero formula code leaked on cards, no GitHub link here, direct WorldQuant BRAIN link)
+ */
+function PersonalDashboard({
+  showcase,
+  user,
+  alphas,
+  busy,
+  onSync,
+  onInspect,
+  onClone,
+  onOpenStudio,
+}: {
+  showcase: ProfileShowcase | null;
+  user: { id?: string; fullName?: string; email?: string; level?: string } | null;
+  alphas: Alpha[];
+  busy: boolean;
+  onSync: () => void;
+  onInspect: (a: Alpha) => void;
+  onClone: (a: Alpha) => void;
+  onOpenStudio: () => void;
+}) {
+  const submitted = useMemo(
+    () =>
+      showcase?.submitted_alphas?.length
+        ? showcase.submitted_alphas
+        : alphas.filter((a) => a.submission_status === "SUBMITTED"),
+    [showcase, alphas],
+  );
+
+  const totalCreated = showcase?.metrics.total_created ?? alphas.length;
+  const hurdlePassed =
+    showcase?.metrics.hurdle_passed_count ??
+    alphas.filter(passesMetricHurdles).length;
+  const passRate =
+    showcase?.metrics.pass_rate_pct ??
+    Number(((hurdlePassed / Math.max(1, totalCreated)) * 100).toFixed(1));
+  const peakFitness = showcase?.metrics.peak_fitness ?? 0;
+  const peakSharpe = showcase?.metrics.peak_sharpe ?? 0;
+
+  const tiers = showcase?.tier_distribution ?? {
+    SPECTACULAR: 0,
+    EXCELLENT: 0,
+    GOOD: 0,
+    AVERAGE: 0,
+    BELOW_HURDLE: 0,
+  };
+
+  const milestones = showcase?.milestones ?? [];
+
+  const researcherName =
+    showcase?.user?.fullName || user?.fullName || "Authenticated Researcher";
+  const researcherLevel = showcase?.user?.level || user?.level || "BRONZE";
+  const researcherId = showcase?.user?.id || user?.id || "WQ-USER";
+
+  return (
+    <div className="personal-dashboard-stack">
+      <section className="personal-hero recessed">
+        <div className="personal-hero-main">
+          <div className="personal-avatar-badge">
+            <AlphaLogo size={56} />
+          </div>
+          <div className="personal-hero-copy">
+            <div className="personal-badges-row">
+              <span className="personal-level-pill">
+                <Award size={13} />
+                <span>{researcherLevel} LEVEL</span>
+              </span>
+              <span className="personal-id-pill mono">ID · {researcherId}</span>
+              <span className="personal-conn-pill online">
+                AUTHENTICATED SESSION
+              </span>
+            </div>
+            <h1>{researcherName}</h1>
+            <p>
+              WorldQuant BRAIN Researcher · {researcherLevel} Level Standing ·
+              Synchronized with `platform.worldquantbrain.com`.
+            </p>
+          </div>
+        </div>
+
+        <div className="personal-hero-actions">
+          <a
+            className="button primary"
+            href="https://platform.worldquantbrain.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>Open WorldQuant BRAIN</span>
+            <ExternalLink size={14} />
+          </a>
+          <ButtonBase
+            className="personal-secondary-btn"
+            busy={busy}
+            busyLabel="Syncing…"
+            onClick={onSync}
+          >
+            <RefreshCw size={14} />
+            <span>Sync Vault</span>
+          </ButtonBase>
+        </div>
+      </section>
+
+      <div className="metrics-grid">
+        <MetricCard
+          label="ALPHAS CREATED"
+          value=""
+          numeric={totalCreated}
+          sub="100% Audited"
+          guide="Total factors synthesized & evaluated in vault"
+          tone="emerald"
+        />
+        <MetricCard
+          label="SUBMITTED ON BRAIN"
+          value=""
+          numeric={submitted.length}
+          sub="Live Portfolio"
+          guide="Active signals running in production on BRAIN"
+          tone="amber"
+        />
+        <MetricCard
+          label="HURDLE QUALIFIED"
+          value=""
+          numeric={hurdlePassed}
+          sub={`${passRate}% Rate`}
+          guide="Cleared Sharpe ≥ 1.25, Fit ≥ 1.0, Turnover ≤ 70%"
+          tone="gold"
+        />
+        <MetricCard
+          label="PEAK FITNESS"
+          value=""
+          numeric={peakFitness}
+          decimals={2}
+          sub={`SR ${peakSharpe.toFixed(2)}`}
+          guide="Highest audited factor fitness in your vault"
+          tone="ink"
+        />
+      </div>
+
+      <div className="personal-two-col">
+        <section className="glass-soft personal-panel">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">PORTFOLIO QUALITY DISTRIBUTION</span>
+              <h2>WorldQuant Tier Pyramid</h2>
+              <p className="section-sub">
+                Distribution of your {totalCreated} audited signals across
+                official WorldQuant BRAIN fitness &amp; Sharpe tiers.
+              </p>
+            </div>
+          </div>
+
+          <div className="pyramid-list">
+            {[
+              [
+                "SPECTACULAR",
+                "Fitness ≥ 2.50 · Elite Production",
+                tiers.SPECTACULAR || 0,
+                "tier-spectacular",
+              ],
+              [
+                "EXCELLENT",
+                "Fitness 2.00 – 2.49 · High Conviction",
+                tiers.EXCELLENT || 0,
+                "tier-excellent",
+              ],
+              [
+                "GOOD",
+                "Fitness 1.50 – 1.99 · Solid Alpha",
+                tiers.GOOD || 0,
+                "tier-good",
+              ],
+              [
+                "AVERAGE",
+                "Sharpe ≥ 1.25 · Hurdle Qualified",
+                tiers.AVERAGE || 0,
+                "tier-default",
+              ],
+              [
+                "BELOW HURDLE",
+                "Research & Experimental Drafts",
+                tiers.BELOW_HURDLE || 0,
+                "tier-muted",
+              ],
+            ].map(([name, desc, count, cls]) => {
+              const num = Number(count);
+              const pct = Math.max(
+                4,
+                Math.min(
+                  100,
+                  Math.round((num / Math.max(1, totalCreated)) * 100),
+                ),
+              );
+              return (
+                <div className="pyramid-row" key={String(name)}>
+                  <div className="pyramid-row-head">
+                    <div className="pyramid-row-title">
+                      <span className={`quality-pill ${cls}`}>{name}</span>
+                      <small>{desc}</small>
+                    </div>
+                    <strong className="mono">{num} Alphas</strong>
+                  </div>
+                  <div className="pyramid-track">
+                    <i className={String(cls)} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="glass-soft personal-panel">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">VERIFIED RESEARCHER MILESTONES</span>
+              <h2>Account Standing &amp; Milestones</h2>
+              <p className="section-sub">
+                Milestones verified from your WorldQuant BRAIN account and
+                audited vault.
+              </p>
+            </div>
+            <span className="tiny-pill">
+              {milestones.filter((m) => m.unlocked).length}/{milestones.length}{" "}
+              UNLOCKED
+            </span>
+          </div>
+
+          <div className="milestones-grid">
+            {milestones.map((m) => (
+              <article
+                key={m.id}
+                className={`milestone-card ${m.unlocked ? "is-unlocked" : "is-locked"}`}
+              >
+                <div className="milestone-top">
+                  <span className="milestone-check">
+                    <Check size={13} />
+                  </span>
+                  <span className="milestone-metric mono">{m.metric}</span>
+                </div>
+                <strong>{m.title}</strong>
+                <p>{m.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* SUBMITTED PORTFOLIO CARDS (Zero Formula Code Displayed — Only Shown When Cloned to Studio!) */}
+      <section className="table-card glass-soft">
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">ACTIVE PRODUCTION SIGNALS</span>
+            <h2>Submitted WorldQuant BRAIN Portfolio ({submitted.length})</h2>
+            <p className="section-sub">
+              Live alphas accepted into your WorldQuant BRAIN portfolio. Click
+              Clone into Studio to load an expression into the editor.
+            </p>
+          </div>
+          <ButtonBase className="primary small" onClick={onOpenStudio}>
+            <FlaskConical size={14} />
+            <span>Synthesize Next Alpha</span>
+          </ButtonBase>
+        </div>
+
+        <div className="vault-card-grid personal-submitted-grid">
+          {submitted.map((alpha) => {
+            const corr = alpha.max_self_correlation;
+            return (
+              <article
+                key={alpha.id}
+                className="vault-concentric-card"
+                onClick={() => onInspect(alpha)}
+              >
+                <div className="vault-card-top">
+                  <div className="vault-card-id-group">
+                    <strong className="mono">{alpha.id}</strong>
+                    <span className={`quality-pill ${tierClass(alpha.tier)}`}>
+                      {alpha.tier || "EVALUATED"}
+                    </span>
+                  </div>
+                  <span className="status-chip submitted">Submitted</span>
+                </div>
+
+                <div className="vault-card-divider" />
+
+                <div className="vault-card-receipt">
+                  <div className="receipt-cell">
+                    <small>SHARPE</small>
+                    <strong className="mono">{fmt(alpha.sharpe)}</strong>
+                  </div>
+                  <div className="receipt-cell">
+                    <small>FITNESS</small>
+                    <strong className="mono">{fmt(alpha.fitness)}</strong>
+                  </div>
+                  <div className="receipt-cell">
+                    <small>TURNOVER</small>
+                    <strong className="mono">
+                      {fmt(
+                        alpha.turnover_pct ?? (alpha.turnover || 0) * 100,
+                        1,
+                      )}
+                      %
+                    </strong>
+                  </div>
+                  <div className="receipt-cell">
+                    <small>SELF-CORR</small>
+                    <strong className={`mono corr-val ${corrColorClass(corr)}`}>
+                      {fmt(corr)}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="personal-card-actions">
+                  <button
+                    type="button"
+                    className="table-action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClone(alpha);
+                    }}
+                  >
+                    <FlaskConical size={12} />
+                    <span>Clone into Studio</span>
+                  </button>
+                  <span className="personal-scope-note mono">
+                    {alpha.region || "USA"} · {alpha.universe || "TOP3000"} · D
+                    {alpha.delay ?? 1}
+                  </span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function TermsPanel() {
   const sections = [
     [
       "01",
       "OPERATIONAL MANDATE",
-      "This quantitative research studio accelerates factor discovery, simulation, and hurdle verification for WorldQuant BRAIN consultants. All cloud simulations and portfolio submissions abide by official platform rate limits and governance rules.",
+      "This quantitative research studio accelerates factor discovery, simulation, and hurdle verification for WorldQuant BRAIN researchers. All cloud simulations and portfolio submissions abide by official platform rate limits and governance rules.",
     ],
     [
       "02",
       "LOCAL COMPUTE & DATA SOVEREIGNTY",
-      "Factor expressions, SQLite audit trails, and session preferences remain stored on your local machine unless you explicitly dispatch a simulation or synchronize with WorldQuant BRAIN.",
+      "Factor expressions, SQLite audit trails, and session preferences remain stored on your local machine and are strictly gated behind authentication.",
     ],
     [
       "03",
-      "CONSULTANT SUBMISSION CONTROL",
-      "Automated pipelines verify Sharpe ≥ 1.25, Fitness ≥ 1.00, Turnover 1%–70%, and Self-Correlation < 0.70, but live portfolio submission always requires explicit human confirmation.",
+      "SUBMISSION CONTROL",
+      "Automated pipelines verify Sharpe ≥ 1.25, Fitness ≥ 1.00, Turnover 1%–70%, and Self-Correlation < 0.70, while live portfolio submission always requires explicit human confirmation.",
     ],
     [
       "04",
@@ -3539,38 +4516,36 @@ function TermsPanel() {
         </article>
       ))}
 
-      {/* DEDICATED PROFILE & GITHUB REPOSITORY CARDS FOR ASHWIN AND AKSHAT */}
       <article className="creator-profile-card glass-soft">
         <div className="creator-head">
           <AlphaLogo size={44} />
           <div>
-            <span className="eyebrow">ARCHITECT &amp; CREATOR</span>
-            <h2>Ashwin</h2>
-            <small>Quantitative Pipeline &amp; BRAIN Engine Architect</small>
+            <span className="eyebrow">ARCHITECT &amp; CO-CREATOR</span>
+            <h2>Ashwin Anand</h2>
+            <small className="mono">@Ashwin-anand-dot</small>
           </div>
         </div>
         <p>
-          Creator of the core WorldQuant BRAIN simulation client, multi-factor
-          algorithmic grammar trees, and real-time portfolio self-correlation
-          auditing engine.
+          Quantitative pipeline engineering, WorldQuant BRAIN simulation
+          orchestration, and multi-factor FastExpr synthesis architecture.
         </p>
-        <div className="creator-actions">
+        <div className="creator-links">
           <a
             className="button primary"
             href="https://github.com/Ashwin-anand-dot"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
-            <span>GitHub Profile (@Ashwin-anand-dot)</span>
+            <span>GitHub Profile</span>
             <ExternalLink size={14} />
           </a>
           <a
             className="button"
             href="https://github.com/Ashwin-anand-dot/brain-alpha-github"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
-            <span>Original Repository</span>
+            <span>brain-alpha-github</span>
             <ExternalLink size={14} />
           </a>
         </div>
@@ -3580,33 +4555,32 @@ function TermsPanel() {
         <div className="creator-head">
           <AlphaLogo size={44} />
           <div>
-            <span className="eyebrow">ARCHITECT &amp; CREATOR</span>
+            <span className="eyebrow">ARCHITECT &amp; CO-CREATOR</span>
             <h2>Akshat</h2>
-            <small>Lead UI/UX Architect &amp; Full-Stack Engineer</small>
+            <small className="mono">@Akshat-xe · @ashuwuin</small>
           </div>
         </div>
         <p>
-          Architect of the Emerald Residence interactive workbench, React Bits
-          telemetry integration, custom FastExpr studio, and institutional
-          visualization system.
+          Autonomous Alpha Miner systems, correlation audit worker, SQLite
+          telemetry registry, and quantitative research workbench.
         </p>
-        <div className="creator-actions">
+        <div className="creator-links">
           <a
             className="button primary"
-            href="https://github.com/ashuwuin"
+            href="https://github.com/Akshat-xe/WorldQuant-Alpha-Miner"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
-            <span>GitHub Profile (@ashuwuin)</span>
+            <span>Akshat-xe Repo</span>
             <ExternalLink size={14} />
           </a>
           <a
             className="button"
             href="https://github.com/ashuwuin/WorldQuant-Alpha-Miner"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
-            <span>WorldQuant-Alpha-Miner Repo</span>
+            <span>ashuwuin Repo</span>
             <ExternalLink size={14} />
           </a>
         </div>
