@@ -7,6 +7,20 @@ from web import server
 
 
 class TestWebGlue(unittest.TestCase):
+    def test_profile_showcase_requires_sign_in(self):
+        with patch.object(server, "get_current_session", return_value=None):
+            response = asyncio.run(server.get_profile_showcase(MagicMock()))
+        self.assertEqual(response.status_code, 401)
+
+    def test_login_error_does_not_expose_backend_details(self):
+        with patch.object(server, "BrainClient", side_effect=RuntimeError("private-auth-detail")):
+            response = asyncio.run(server.auth_login(
+                server.LoginRequest(email="researcher@example.com", password="incorrect"),
+                MagicMock(),
+            ))
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn(b"private-auth-detail", response.body)
+
     def test_preview_uses_selected_algorithmic_pattern(self):
         request = MagicMock()
         with patch.object(server, "get_current_session", return_value=None):

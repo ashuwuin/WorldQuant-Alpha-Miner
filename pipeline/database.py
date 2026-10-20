@@ -8,7 +8,7 @@ from contextlib import contextmanager
 class AlphaDatabase:
     """
     SQLite persistent storage for tracking all evaluated WorldQuant BRAIN alphas,
-    their metrics, check results, and submittability status.
+    their metrics, check results, submittability status, and sync metadata.
     """
     def __init__(self, db_path: str = "alphas_audit.db"):
         self.db_path = db_path
@@ -60,11 +60,65 @@ class AlphaDatabase:
             except sqlite3.OperationalError:
                 pass
 
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_sync_meta (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    user_id TEXT,
+                    full_name TEXT,
+                    email TEXT,
+                    level TEXT,
+                    active_synced INTEGER DEFAULT 0,
+                    unsubmitted_synced INTEGER DEFAULT 0,
+                    last_synced_at TEXT
+                )
+            """)
+
             conn.execute("CREATE INDEX IF NOT EXISTS idx_submittable ON alphas(is_submittable)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_source ON alphas(source)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_corr_checked ON alphas(correlation_checked, submission_status)")
             conn.commit()
 
+    def save_sync_meta(
+        self,
+        active_synced: int,
+        unsubmitted_synced: int,
+        user_profile: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Persists latest WorldQuant BRAIN sync metadata and user standing."""
+        now_str = datetime.now(timezone.utc).isoformat()
+        profile = user_profile or {}
+        with self._get_connection() as conn:
+            existing = conn.execute("SELECT * FROM user_sync_meta WHERE id = 1").fetchone()
+            ex = dict(existing) if existing else {}
+            conn.execute("""
+                INSERT INTO user_sync_meta (
+                    id, user_id, full_name, email, level,
+                    active_synced, unsubmitted_synced, last_synced_at
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    user_id = COALESCE(excluded.user_id, user_sync_meta.user_id),
+                    full_name = COALESCE(excluded.full_name, user_sync_meta.full_name),
+                    email = COALESCE(excluded.email, user_sync_meta.email),
+                    level = COALESCE(excluded.level, user_sync_meta.level),
+                    active_synced = excluded.active_synced,
+                    unsubmitted_synced = excluded.unsubmitted_synced,
+                    last_synced_at = excluded.last_synced_at
+            """, (
+                profile.get("id") or ex.get("user_id") or "WQ-USER",
+                profile.get("fullName") or ex.get("full_name") or "Quant Researcher",
+                profile.get("email") or ex.get("email") or "",
+                profile.get("level") or ex.get("level") or "BRONZE",
+                active_synced,
+                unsubmitted_synced,
+                now_str
+            ))
+            conn.commit()
+
+    def get_sync_meta(self) -> Dict[str, Any]:
+        """Returns the persisted WorldQuant BRAIN sync metadata."""
+        with self._get_connection() as conn:
+            row = conn.execute("SELECT * FROM user_sync_meta WHERE id = 1").fetchone()
+            return dict(row) if row else {}
 
     def save_evaluation(self, res: Dict[str, Any], source: str = "local_simulation") -> None:
         """Saves or updates an alpha evaluation record."""
@@ -453,5 +507,3 @@ class AlphaDatabase:
                 "today_submittable": today_submittable,
                 "is_today_only": today_only
             }
-
-

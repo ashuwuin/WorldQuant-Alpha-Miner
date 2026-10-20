@@ -159,47 +159,11 @@ def compute_tier(fitness: Optional[float], sharpe: Optional[float]) -> str:
     return "BELOW_HURDLE"
 
 def get_current_session(request: Request) -> Optional[Dict[str, Any]]:
-    """Retrieves session from cookie or defaults to local environment credentials."""
-    token = request.cookies.get("session_id")
+    """Retrieves active authenticated session exclusively from a valid session cookie."""
+    cookies = getattr(request, "cookies", {}) or {}
+    token = cookies.get("session_id")
     if token and token in USER_SESSIONS:
         return USER_SESSIONS[token]
-
-    # Local fallback session using .env
-    env_email = os.getenv("BRAIN_EMAIL")
-    env_pass = os.getenv("BRAIN_PASSWORD")
-    if env_email and env_pass:
-        default_token = "default_local_user"
-        if default_token not in USER_SESSIONS:
-            try:
-                cfg = PipelineConfig()
-                client = BrainClient(cfg)
-                profile = {}
-                try:
-                    p_res = client._request_with_retry("GET", f"{cfg.api_base}/users/self")
-                    if p_res.status_code == 200:
-                        profile = p_res.json()
-                except Exception:
-                    pass
-
-                USER_SESSIONS[default_token] = {
-                    "client": client,
-                    "user": {
-                        "id": profile.get("id") or "BRAIN_USER",
-                        "fullName": profile.get("fullName") or profile.get("firstName") or "Quant Researcher",
-                        "email": env_email,
-                        "level": profile.get("level") or "CONSULTANT"
-                    },
-                    "engine": "algorithmic",
-                    "cloud_provider": "gemini",
-                    "cloud_api_key": os.getenv("GEMINI_API_KEY", ""),
-                    "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
-                    "ollama_endpoint": os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434"),
-                    "ollama_model": os.getenv("OLLAMA_MODEL", "deepseek-r1:latest")
-                }
-            except Exception:
-                pass
-        if default_token in USER_SESSIONS:
-            return USER_SESSIONS[default_token]
     return None
 
 # ==============================================================================
@@ -221,6 +185,10 @@ async def engine_select_page(request: Request):
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"initial_tab": "dashboard"})
+
+@app.get("/personal", response_class=HTMLResponse)
+async def personal_dashboard_page(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html", context={"initial_tab": "personal"})
 
 @app.get("/studio", response_class=HTMLResponse)
 async def studio_page(request: Request, background_tasks: BackgroundTasks):
@@ -318,27 +286,49 @@ class LoginRequest(BaseModel):
 async def auth_login(req: LoginRequest, background_tasks: BackgroundTasks):
     try:
         cfg = PipelineConfig()
-        sess = requests.Session()
-        resp = sess.post(f"{cfg.api_base}/authentication", auth=(req.email, req.password), timeout=15)
-        if resp.status_code not in (200, 201):
-            return JSONResponse(status_code=401, content={"success": False, "error": "Invalid WorldQuant BRAIN email or password."})
+        email_clean = req.email.strip()
+        pass_clean = req.password.strip()
 
-        # Fetch authenticated profile
-        p_resp = sess.get(f"{cfg.api_base}/users/self", timeout=15)
-        profile = p_resp.json() if p_resp.status_code == 200 else {}
-
-        # Initialize client with session-specific in-memory credentials (no global os.environ mutation)
-        client = BrainClient(config=cfg, email=req.email, password=req.password)
+        client = None
+        profile = {}
+        try:
+            client = await run_in_threadpool(BrainClient, cfg, email_clean, pass_clean)
+            p_resp = await run_in_threadpool(client._request_with_retry, "GET", f"{cfg.api_base}/users/self")
+            if p_resp.status_code == 200:
+                profile = p_resp.json()
+        except Exception:
+            # If live BRAIN API is temporarily rate-limited or offline, allow login if credentials match local .env
+            env_email = (os.getenv("BRAIN_EMAIL") or "").strip()
+            env_pass = (os.getenv("BRAIN_PASSWORD") or "").strip()
+            if env_email and env_pass and email_clean.lower() == env_email.lower() and pass_clean == env_pass:
+                client = BrainClient.__new__(BrainClient)
+                client.config = cfg
+                client.email = email_clean
+                client.password = pass_clean
+                client._lock = threading.Lock()
+                client.session = requests.Session()
+            else:
+                return JSONResponse(
+                    status_code=401,
+                    content={"success": False, "error": "Unable to authenticate with WorldQuant BRAIN. Check your credentials and connection."}
+                )
 
         session_token = str(uuid.uuid4())
-        full_name = profile.get("fullName") or f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip() or "Quant Researcher"
+        full_name = (
+            profile.get("fullName")
+            or f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
+            or email_clean.split("@")[0].replace(".", " ").title()
+        )
+        raw_level = str(profile.get("level") or "").upper()
+        user_level = raw_level if raw_level in ("BRONZE", "SILVER", "GOLD") else "BRONZE"
+
         USER_SESSIONS[session_token] = {
             "client": client,
             "user": {
-                "id": profile.get("id", "BRAIN_USER"),
+                "id": profile.get("id") or "WQ-USER",
                 "fullName": full_name,
-                "email": req.email,
-                "level": profile.get("level") or "CONSULTANT"
+                "email": email_clean,
+                "level": user_level
             },
             "engine": "algorithmic",
             "cloud_provider": "gemini",
@@ -351,10 +341,11 @@ async def auth_login(req: LoginRequest, background_tasks: BackgroundTasks):
 
         # Run initial sync in background so login responds immediately
         try:
-            db = AlphaDatabase(DB_PATH)
-            USER_SESSIONS[session_token]["synced_on_studio"] = True
-            background_tasks.add_task(client.sync_user_alphas, db, 150)
-            CORRELATION_WORKER.start(client)
+            if client:
+                db = AlphaDatabase(DB_PATH)
+                USER_SESSIONS[session_token]["synced_on_studio"] = True
+                background_tasks.add_task(client.sync_user_alphas, db, 150)
+                CORRELATION_WORKER.start(client)
         except Exception as sync_err:
             print(f"[!] Initial sync warning: {sync_err}")
 
@@ -365,15 +356,13 @@ async def auth_login(req: LoginRequest, background_tasks: BackgroundTasks):
         })
         res.set_cookie(key="session_id", value=session_token, httponly=True, samesite="lax")
         return res
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+    except Exception:
+        return JSONResponse(status_code=500, content={"success": False, "error": "Sign in failed. Please try again."})
 
 @app.post("/api/auth/logout")
 async def auth_logout(request: Request):
-    token = request.cookies.get("session_id")
+    cookies = getattr(request, "cookies", {}) or {}
+    token = cookies.get("session_id")
     if token and token in USER_SESSIONS:
         del USER_SESSIONS[token]
     res = JSONResponse(content={"success": True})
@@ -460,6 +449,145 @@ async def get_dashboard_summary(request: Request):
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/profile/showcase")
+async def get_profile_showcase(request: Request):
+    """
+    Protected endpoint returning the signed-in researcher's profile,
+    BRONZE/SILVER/GOLD level, and audited vault summary for Page 07.
+    Never exposes data when unauthenticated.
+    """
+    sess = get_current_session(request)
+    if not sess:
+        return JSONResponse(
+            status_code=401,
+            content={"authenticated": False, "error": "Sign in required to view Personal Dashboard."}
+        )
+
+    user_info = sess.get("user") or {
+        "id": "WQ-USER",
+        "fullName": "Quant Researcher",
+        "email": "",
+        "level": "BRONZE"
+    }
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM alphas ORDER BY fitness DESC")
+        rows = [dict(r) for r in c.fetchall()]
+
+    total_created = len(rows)
+    submitted_alphas = []
+    orthogonal_alphas = []
+    hurdle_passed_count = 0
+    corr_checked_count = 0
+    tier_counts = {
+        "SPECTACULAR": 0,
+        "EXCELLENT": 0,
+        "GOOD": 0,
+        "AVERAGE": 0,
+        "BELOW_HURDLE": 0
+    }
+
+    sharpes = []
+    fitnesses = []
+    for d in rows:
+        tier = compute_tier(d.get("fitness"), d.get("sharpe"))
+        d["tier"] = tier
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        d["returns_pct"] = round((d.get("returns") or 0.0) * 100, 2)
+        d["turnover_pct"] = round((d.get("turnover") or 0.0) * 100, 2)
+        d["margin_bps"] = round((d.get("margin") or 0.0) * 10000, 2)
+        d["drawdown_pct"] = round((d.get("drawdown") or 0.0) * 100, 2)
+
+        s = d.get("sharpe") or 0.0
+        f = d.get("fitness") or 0.0
+        t = d["turnover_pct"]
+        if s > 0:
+            sharpes.append(s)
+        if f > 0:
+            fitnesses.append(f)
+        if s >= 1.25 and f >= 1.0 and 1.0 <= t <= 70.0:
+            hurdle_passed_count += 1
+        if d.get("correlation_checked"):
+            corr_checked_count += 1
+        if d.get("submission_status") == "SUBMITTED":
+            submitted_alphas.append(d)
+        elif d.get("is_submittable"):
+            orthogonal_alphas.append(d)
+
+    peak_sharpe = round(max(sharpes), 2) if sharpes else 0.0
+    peak_fitness = round(max(fitnesses), 2) if fitnesses else 0.0
+    avg_sharpe = round(sum(sharpes) / len(sharpes), 2) if sharpes else 0.0
+    avg_fitness = round(sum(fitnesses) / len(fitnesses), 2) if fitnesses else 0.0
+
+    level_str = user_info.get("level") or "BRONZE"
+    milestones = [
+        {
+            "id": "BRONZE_TRACK",
+            "title": f"WorldQuant {level_str} Level",
+            "description": "Verified account standing on WorldQuant BRAIN",
+            "metric": f"{level_str} LEVEL",
+            "unlocked": True
+        },
+        {
+            "id": "PORTFOLIO_LIVE",
+            "title": "Live Portfolio Submissions",
+            "description": "Orthogonal alphas accepted into live WorldQuant BRAIN production",
+            "metric": f"{len(submitted_alphas)} Submitted",
+            "unlocked": len(submitted_alphas) > 0
+        },
+        {
+            "id": "SPECTACULAR_TIER",
+            "title": "Spectacular Fitness (≥ 2.50)",
+            "description": "Engineered top-decile factor exceeding 2.50 Fitness & 2.35 Sharpe",
+            "metric": f"Peak Fit {peak_fitness:.2f}",
+            "unlocked": peak_fitness >= 2.50
+        },
+        {
+            "id": "HURDLE_MASTERY",
+            "title": "40+ Hurdle-Passed Signals",
+            "description": "Factors clearing Sharpe ≥ 1.25, Fitness ≥ 1.00, and Turnover 1%–70%",
+            "metric": f"{hurdle_passed_count} Passed",
+            "unlocked": hurdle_passed_count >= 40
+        },
+        {
+            "id": "CORR_AUDITED",
+            "title": "100% Self-Correlation Audited",
+            "description": "Every candidate screened against active portfolio (< 0.70 ceiling)",
+            "metric": f"{corr_checked_count}/{total_created} Checked",
+            "unlocked": corr_checked_count >= total_created and total_created > 0
+        },
+        {
+            "id": "ORTHOGONAL_RESERVE",
+            "title": "Orthogonal Reserve Pipeline",
+            "description": "Unsubmitted alphas passing all 7 hurdles & self-correlation < 0.70",
+            "metric": f"{len(orthogonal_alphas)} Ready",
+            "unlocked": len(orthogonal_alphas) > 0
+        }
+    ]
+
+    return {
+        "authenticated": True,
+        "user": user_info,
+        "platform_url": "https://platform.worldquantbrain.com",
+        "metrics": {
+            "total_created": total_created,
+            "submitted_count": len(submitted_alphas),
+            "hurdle_passed_count": hurdle_passed_count,
+            "orthogonal_count": len(orthogonal_alphas),
+            "corr_checked_count": corr_checked_count,
+            "peak_sharpe": peak_sharpe,
+            "peak_fitness": peak_fitness,
+            "avg_sharpe": avg_sharpe,
+            "avg_fitness": avg_fitness,
+            "pass_rate_pct": round((hurdle_passed_count / max(1, total_created)) * 100, 1)
+        },
+        "tier_distribution": tier_counts,
+        "submitted_alphas": submitted_alphas,
+        "orthogonal_alphas": orthogonal_alphas[:6],
+        "milestones": milestones
+    }
 
 # ==============================================================================
 # Discovery Engine Configuration Endpoints

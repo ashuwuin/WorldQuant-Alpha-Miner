@@ -106,7 +106,6 @@ class BrainClient:
             
             data = resp.json()
             status = data.get("status")
-            progress = data.get("progress", 0.0)
             
             if status in ("COMPLETE", "DONE", "FINISHED"):
                 return data.get("alpha")
@@ -215,7 +214,6 @@ class BrainClient:
 
         return self.fetch_alpha(alpha_id)
 
-
     def fetch_datasets(self, region: str = "USA", universe: str = "TOP3000", delay: int = 1, limit: int = 50) -> Dict[str, Any]:
         """Fetches available datasets from WorldQuant BRAIN."""
         url = f"{self.config.api_base}/data-sets"
@@ -284,14 +282,52 @@ class BrainClient:
             logger.error(f"[!] Alpha submission failed ({resp.status_code}): {resp.text}")
             return {"success": False, "status_code": resp.status_code, "error": resp.text}
 
-    def sync_user_alphas(self, db: Any, max_unsubmitted: int = 150) -> Dict[str, Any]:
+    def fetch_user_profile(self) -> Dict[str, Any]:
+        """Fetches the authenticated user's profile and rank level from WorldQuant BRAIN."""
+        url = f"{self.config.api_base}/users/self"
+        resp = self._request_with_retry("GET", url)
+        if resp.status_code == 200:
+            try:
+                data = resp.json()
+                full_name = (
+                    data.get("fullName")
+                    or f"{data.get('firstName', '')} {data.get('lastName', '')}".strip()
+                    or (self.email.split("@")[0].replace(".", " ").title() if self.email else "Quant Researcher")
+                )
+                raw_level = str(data.get("level") or data.get("tier") or "BRONZE").strip().upper()
+                if "GOLD" in raw_level:
+                    level = "GOLD"
+                elif "SILVER" in raw_level:
+                    level = "SILVER"
+                elif "CONSULTANT" in raw_level or "PLATINUM" in raw_level or "ELITE" in raw_level:
+                    level = "CONSULTANT"
+                else:
+                    level = "BRONZE"
+                return {
+                    "id": data.get("id") or "WQ-USER",
+                    "fullName": full_name,
+                    "email": data.get("email") or self.email,
+                    "level": level,
+                }
+            except Exception as e:
+                logger.warning(f"[!] Failed to parse /users/self profile: {e}")
+        return {}
+
+    def sync_user_alphas(self, db: Any, max_unsubmitted: int = 300) -> Dict[str, Any]:
         """
-        Pulls all active (submitted) alphas and unsubmitted draft alphas from the user's
-        WorldQuant BRAIN account and persists them into the local AlphaDatabase.
+        Pulls all active (submitted) alphas, unsubmitted draft alphas, and user profile
+        standing from the user's WorldQuant BRAIN account and persists them into AlphaDatabase.
         """
-        logger.info("[*] Initiating full alpha sync from WorldQuant BRAIN API...")
+        logger.info("[*] Initiating full alpha & profile sync from WorldQuant BRAIN API...")
         active_count = 0
         unsubmitted_count = 0
+        profile_info: Dict[str, Any] = {}
+
+        # 0. Fetch latest user profile & rank standing (/users/self)
+        try:
+            profile_info = self.fetch_user_profile()
+        except Exception as e:
+            logger.warning(f"[!] Could not refresh user profile during sync: {e}")
 
         # 1. Fetch active (submitted) portfolio alphas
         try:
@@ -330,11 +366,20 @@ class BrainClient:
         except Exception as e:
             logger.error(f"[!] Error syncing UNSUBMITTED alphas: {e}")
 
+        if hasattr(db, "save_sync_meta"):
+            try:
+                db.save_sync_meta(
+                    active_synced=active_count,
+                    unsubmitted_synced=unsubmitted_count,
+                    user_profile=profile_info
+                )
+            except Exception as e:
+                logger.warning(f"[!] Could not save sync metadata: {e}")
+
         return {
             "success": True,
             "active_synced": active_count,
             "unsubmitted_synced": unsubmitted_count,
-            "total_synced": active_count + unsubmitted_count
+            "total_synced": active_count + unsubmitted_count,
+            "user_profile": profile_info
         }
-
-
