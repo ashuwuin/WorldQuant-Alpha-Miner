@@ -9,7 +9,7 @@
 
 Local alpha research and simulation for **WorldQuant BRAIN**.
 
-Forked from [ashuwuin/WorldQuant-Alpha-Miner](https://github.com/ashuwuin/WorldQuant-Alpha-Miner). UI improvements by Ashwin Anand.
+Forked from [ashuwuin/WorldQuant-Alpha-Miner](https://github.com/ashuwuin/WorldQuant-Alpha-Miner). UI updated by Ashwin Anand.
 
 ---
 
