@@ -11,3 +11,9 @@ venv/
 .env
 .DS_Store
 *.log
+frontend/node_modules/
+frontend/.vite/
+web/static/ui/
+*.db
+*.sqlite
+*.sqlite3

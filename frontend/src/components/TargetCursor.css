@@ -1,0 +1,31 @@
+.target-cursor {
+  --target-cursor-color: #133829;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  user-select: none;
+  contain: layout style size;
+}
+
+.target-cursor__corner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: #c5a875;
+  filter: drop-shadow(0 0 1px rgba(10, 20, 16, 0.85));
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.target-cursor__dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  background: #c5a875;
+  box-shadow: 0 0 0 1.5px #0a1410;
+  will-change: transform;
+}

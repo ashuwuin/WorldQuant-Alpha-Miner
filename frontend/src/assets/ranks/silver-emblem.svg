@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="silverOuterRing" x1="12" y1="8" x2="108" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="28%" stop-color="#CBD5E1"/>
+      <stop offset="55%" stop-color="#64748B"/>
+      <stop offset="78%" stop-color="#E2E8F0"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="silverShieldBody" x1="26" y1="18" x2="94" y2="102" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F1F5F9"/>
+      <stop offset="42%" stop-color="#94A3B8"/>
+      <stop offset="75%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="silverInnerCore" x1="35" y1="28" x2="85" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="50%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="silverCrownSpecular" x1="40" y1="24" x2="80" y2="84" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#CBD5E1"/>
+      <stop offset="100%" stop-color="#64748B"/>
+    </linearGradient>
+    <filter id="silverDropShadow" x="-12%" y="-12%" width="124%" height="128%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#silverDropShadow)">
+    <polygon points="60,4 94,18 112,50 102,88 60,115 18,88 8,50 26,18" fill="url(#silverOuterRing)" stroke="#F8FAFC" stroke-width="1.5"/>
+    <polygon points="60,10 89,22 105,51 96,84 60,108 24,84 15,51 31,22" fill="url(#silverShieldBody)" stroke="#334155" stroke-width="1.2"/>
+    <polygon points="60,17 84,27 97,52 89,79 60,99 31,79 23,52 36,27" fill="url(#silverInnerCore)" stroke="url(#silverOuterRing)" stroke-width="1.8"/>
+
+    <path d="M34 74 C26 62, 26 44, 36 32 C32 44, 34 59, 42 70 Z" fill="url(#silverCrownSpecular)"/>
+    <path d="M86 74 C94 62, 94 44, 84 32 C88 44, 86 59, 78 70 Z" fill="url(#silverCrownSpecular)"/>
+
+    <path d="M60 25 L79 64 L69.5 64 L60 43 L50.5 64 L41 64 Z" fill="url(#silverCrownSpecular)" stroke="#FFFFFF" stroke-width="1"/>
+    <polygon points="52,70 54,74 58.5,74.7 55.2,77.8 56,82.3 52,80.1 48,82.3 48.8,77.8 45.5,74.7 50,74" fill="#F8FAFC"/>
+    <polygon points="68,70 70,74 74.5,74.7 71.2,77.8 72,82.3 68,80.1 64,82.3 64.8,77.8 61.5,74.7 66,74" fill="#F8FAFC"/>
+
+    <path d="M32 90 L88 90 L83 102 L60 107 L37 102 Z" fill="url(#silverOuterRing)" stroke="#FFFFFF" stroke-width="1"/>
+    <text x="60" y="100" text-anchor="middle" fill="#0F172A" font-family="JetBrains Mono, monospace" font-weight="800" font-size="8.5" letter-spacing="1.2">SILVER</text>
+  </g>
+</svg>

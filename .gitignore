@@ -21,8 +21,8 @@ your_candidates.json
 *.db*
 *.sqlite
 *.sqlite*
+*.sqlite3
 alphas_audit.db
-
 
 # Python Bytecode, Caches & Virtual Environments
 __pycache__/
@@ -53,3 +53,9 @@ ehthumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Frontend build workspace
+frontend/node_modules
+
+frontend/.vite/
+frontend/*.tsbuildinfo

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="eliteOuterRing" x1="10" y1="6" x2="110" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ECFDF5"/>
+      <stop offset="30%" stop-color="#34D399"/>
+      <stop offset="60%" stop-color="#C5A875"/>
+      <stop offset="100%" stop-color="#064E3B"/>
+    </linearGradient>
+    <linearGradient id="eliteInnerCore" x1="30" y1="22" x2="90" y2="96" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#064E3B"/>
+      <stop offset="50%" stop-color="#022C22"/>
+      <stop offset="100%" stop-color="#133829"/>
+    </linearGradient>
+  </defs>
+  <polygon points="60,3 95,17 113,50 103,88 60,116 17,88 7,50 25,17" fill="url(#eliteOuterRing)" stroke="#FDE68A" stroke-width="1.6"/>
+  <polygon points="60,15 85,26 99,52 90,80 60,100 30,80 21,52 35,26" fill="url(#eliteInnerCore)" stroke="#FDE68A" stroke-width="1.8"/>
+  <path d="M60 23 L80 63 L70 63 L60 41 L50 63 L40 63 Z" fill="#FDE68A" stroke="#ECFDF5" stroke-width="1"/>
+  <polygon points="60,67 63,73 69.5,74 64.8,78.5 66,85 60,81.8 54,85 55.2,78.5 50.5,74 57,73" fill="#34D399"/>
+  <path d="M26 90 L94 90 L88 102 L60 107 L32 102 Z" fill="url(#eliteOuterRing)" stroke="#FFFBEB" stroke-width="1"/>
+  <text x="60" y="100" text-anchor="middle" fill="#022C22" font-family="JetBrains Mono, monospace" font-weight="800" font-size="7.5" letter-spacing="0.9">CONSULTANT</text>
+</svg>
